@@ -14,9 +14,18 @@ export default function Testing() {
       </Head>
 
       <main className="min-h-screen">
-        <Navbar />
-        <Hero />
+        <Navbar onBookClick={scrollToBooking} />
+        <Hero onBookClick={scrollToBooking} />
       </main>
     </>
   );
+}
+
+function scrollToBooking() {
+  const bookingSection = document.getElementById('booking');
+  if (bookingSection) {
+    const navbarHeight = document.querySelector('nav')?.offsetHeight || 0;
+    const sectionTop = bookingSection.offsetTop - navbarHeight;
+    window.scrollTo({ top: sectionTop, behavior: 'smooth' });
+  }
 } 

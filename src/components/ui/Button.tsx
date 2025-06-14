@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { forwardRef } from 'react';
+import { motion, MotionProps } from 'framer-motion';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'accent';
@@ -7,6 +7,17 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
   children: React.ReactNode;
 }
+
+const MotionButton = motion(
+  forwardRef<HTMLButtonElement, ButtonProps & MotionProps>((props, ref) => {
+    const { children, ...rest } = props;
+    return (
+      <button ref={ref} {...rest}>
+        {children}
+      </button>
+    );
+  })
+);
 
 export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
@@ -33,8 +44,15 @@ export const Button: React.FC<ButtonProps> = ({
 
   const isDisabled = disabled || isLoading;
 
+  // Omit drag and animation event props to avoid type conflicts
+  const {
+    onDrag, onDragEnd, onDragStart,
+    onAnimationStart, onAnimationEnd, onAnimationIteration,
+    ...rest
+  } = props;
+
   return (
-    <motion.button
+    <MotionButton
       whileHover={!isDisabled ? { scale: 1.02 } : {}}
       whileTap={!isDisabled ? { scale: 0.98 } : {}}
       className={`
@@ -45,7 +63,7 @@ export const Button: React.FC<ButtonProps> = ({
         ${className}
       `}
       disabled={isDisabled}
-      {...props}
+      {...rest}
     >
       {isLoading ? (
         <div className="flex items-center justify-center">
@@ -55,6 +73,6 @@ export const Button: React.FC<ButtonProps> = ({
       ) : (
         children
       )}
-    </motion.button>
+    </MotionButton>
   );
 }; 

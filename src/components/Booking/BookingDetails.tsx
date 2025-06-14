@@ -68,11 +68,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
       weather: weather as string,
       price: totalPrice,
       isPrivateLesson,
-      wetsuitSize,
       ...(isBookingForOthers && {
         bookingForOthers: otherPersonInfo
-      }),
-      waiver: waiverData,
+      })
     });
     
     // Navigate to cart page after adding item
@@ -88,11 +86,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
       weather: weather as string,
       price: totalPrice,
       isPrivateLesson,
-      wetsuitSize,
       ...(isBookingForOthers && {
         bookingForOthers: otherPersonInfo
-      }),
-      waiver: waiverData,
+      })
     });
     
     // Navigate back to booking section
@@ -113,11 +109,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
       weather: weather as string,
       price: totalPrice,
       isPrivateLesson,
-      wetsuitSize,
       ...(isBookingForOthers && {
         bookingForOthers: otherPersonInfo
-      }),
-      waiver: waiverData,
+      })
     });
     
     // Then go to cart page
