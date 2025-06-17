@@ -219,7 +219,7 @@ export default function CheckoutPage() {
                       <strong>Note:</strong> Complete your customer information above to proceed with payment.
                       Payment will be processed securely through Stripe.
                     </p>
-                  </div>
+                      </div>
                 </div>
               </div>
             </div>

@@ -55,7 +55,7 @@ export const FullPageChat: React.FC = () => {
           return 'engaged'; // Cycle back to engaged, skipping initial
         default:
           return 'engaged';
-      }
+    }
     });
   };
 

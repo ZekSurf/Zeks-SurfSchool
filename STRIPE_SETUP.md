@@ -49,7 +49,7 @@ NEXT_PUBLIC_BOOKING_WEBHOOK_URL=https://cheeseman.app.n8n.cloud/webhook-test/008
    - Use any future expiry date and any 3-digit CVC
 
 ### 3. Webhook Configuration (Essential for Google Calendar Integration)
-
+npm 
 Set up webhooks to handle payment confirmations and send data to n8n:
 
 1. In Stripe Dashboard, go to **Developers** → **Webhooks**
@@ -65,23 +65,27 @@ The webhook system automatically sends booking data to your n8n workflow:
 **Data sent to n8n includes:**
 ```json
 {
-  "paymentIntentId": "pi_1234567890",
-  "amount": 81.00,
+  "paymentIntentId": "pi_3RaqjnQK0hbvJDZu1fqxlW1F",
+  "confirmationNumber": "SURF-007924-1416",
+  "amount": 118.80,
   "currency": "usd",
-  "customerName": "John Doe",
-  "customerEmail": "john@example.com",
-  "customerPhone": "+1234567890",
-  "status": "confirmed",
-  "bookingDetails": [
-    {
-      "beach": "Doheny State Beach",
-      "date": "2024-12-15",
-      "time": "10:00 AM",
-      "isPrivate": false,
-      "price": 75
-    }
-  ],
-  "timestamp": "2024-12-10T15:30:00.000Z"
+  "customerName": "Billy Badass",
+  "customerEmail": "johnpork@gmail.com",
+  "customerPhone": "8357588363",
+  "isPrivate": false,
+  "lessonsBooked": 1,
+  "slotData": {
+    "beach": "Doheny",
+    "date": "2025-06-14",
+    "slotId": "slot-2",
+    "startTime": "2025-06-14T09:00:00-07:00",
+    "endTime": "2025-06-14T10:30:00-07:00",
+    "label": "Good",
+    "price": 110,
+    "openSpaces": 1,
+    "available": true
+  },
+  "timestamp": "2025-06-17T04:03:28.792Z"
 }
 ```
 
