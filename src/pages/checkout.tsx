@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useCart } from '@/context/CartContext';
 import { Layout } from '@/components/Layout/Layout';
+import { StripePaymentForm } from '@/components/Payment/StripePaymentForm';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -17,53 +18,23 @@ export default function CheckoutPage() {
     phone: '',
   });
 
-  const [billingInfo, setBillingInfo] = useState({
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    address: '',
-    address2: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: 'US'
-  });
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
-  // Format card number with spaces after every 4 digits
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || '';
-    const parts = [];
-
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-
-    if (parts.length) {
-      return parts.join(' ');
-    } else {
-      return value;
-    }
+  const handlePaymentSuccess = (paymentIntentId: string) => {
+    console.log('Payment successful:', paymentIntentId);
+    setPaymentSuccess(true);
+    setPaymentError(null);
+    
+    // Clear cart and redirect to confirmation page
+    clearCart();
+    router.push(`/confirmation?payment_intent=${paymentIntentId}`);
   };
 
-  // Format expiry date as MM/YY
-  const formatExpiryDate = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    if (v.length >= 2) {
-      return v.slice(0, 2) + (v.length > 2 ? '/' + v.slice(2, 4) : '');
-    }
-    return v;
-  };
-
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formattedValue = formatCardNumber(e.target.value);
-    setBillingInfo({ ...billingInfo, cardNumber: formattedValue });
-  };
-
-  const handleExpiryDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formattedValue = formatExpiryDate(e.target.value);
-    setBillingInfo({ ...billingInfo, expiryDate: formattedValue });
+  const handlePaymentError = (error: string) => {
+    console.error('Payment error:', error);
+    setPaymentError(error);
+    setPaymentSuccess(false);
   };
 
   const scrollToBooking = () => {
@@ -90,32 +61,35 @@ export default function CheckoutPage() {
     }
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Clear cart and redirect to success page
-    clearCart();
-    router.push('/success');
-  };
+  // Calculate total with tax
+  const totalWithTax = total * 1.08;
 
   return (
     <>
       <Head>
-        <title>Checkout - Zeko Surf</title>
-        <meta name="description" content="Complete your surf lesson purchase with Zeko Surf." />
+        <title>Checkout - Zek's Surf School</title>
+        <meta name="description" content="Complete your surf lesson purchase with Zek's Surf School." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
+                  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>" />
+          <link rel="apple-touch-icon" href="/zeks-logo.png" />
       </Head>
 
       <Layout onBookClick={scrollToBooking}>
         <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
           
-          <form onSubmit={handleSubmit}>
+          {items.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-4">Your cart is empty</h2>
+              <p className="text-gray-600 mb-6">Add some surf lessons to get started!</p>
+              <button
+                onClick={() => router.push('/#booking')}
+                className="bg-[#1DA9C7] text-white px-8 py-3 rounded-xl font-bold hover:bg-[#1897B2] transition-colors shadow-lg"
+              >
+                Book a Lesson
+              </button>
+            </div>
+          ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Left Column - Forms */}
               <div className="lg:col-span-2 space-y-8">
@@ -178,148 +152,25 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* Billing Information */}
-                <div className="bg-white rounded-xl shadow-lg p-6">
-                  <h2 className="text-2xl font-semibold text-gray-800 mb-6">Billing Information</h2>
-                  <div className="space-y-6">
-                    {/* Card Details */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="md:col-span-2">
-                        <label htmlFor="cardNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                          Card Number
-                        </label>
-                        <input
-                          type="text"
-                          id="cardNumber"
-                          value={billingInfo.cardNumber}
-                          onChange={handleCardNumberChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
-                          placeholder="1234 5678 9012 3456"
-                          maxLength={19}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="expiryDate" className="block text-sm font-medium text-gray-700 mb-2">
-                          Expiry Date
-                        </label>
-                        <input
-                          type="text"
-                          id="expiryDate"
-                          value={billingInfo.expiryDate}
-                          onChange={handleExpiryDateChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
-                          placeholder="MM/YY"
-                          maxLength={5}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="cvv" className="block text-sm font-medium text-gray-700 mb-2">
-                          CVV
-                        </label>
-                        <input
-                          type="text"
-                          id="cvv"
-                          value={billingInfo.cvv}
-                          onChange={(e) => setBillingInfo({ ...billingInfo, cvv: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
-                          placeholder="123"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    {/* Billing Address */}
-                    <div className="border-t pt-6">
-                      <h3 className="text-lg font-medium text-gray-800 mb-4">Billing Address</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="md:col-span-2">
-                          <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                            Street Address
-                          </label>
-                          <input
-                            type="text"
-                            id="address"
-                            value={billingInfo.address}
-                            onChange={(e) => setBillingInfo({ ...billingInfo, address: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
-                            placeholder="123 Main St"
-                            required
-                          />
-                        </div>
-                        <div className="md:col-span-2">
-                          <label htmlFor="address2" className="block text-sm font-medium text-gray-700 mb-2">
-                            Apartment, suite, etc. (optional)
-                          </label>
-                          <input
-                            type="text"
-                            id="address2"
-                            value={billingInfo.address2}
-                            onChange={(e) => setBillingInfo({ ...billingInfo, address2: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
-                            placeholder="Apt 4B"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
-                            City
-                          </label>
-                          <input
-                            type="text"
-                            id="city"
-                            value={billingInfo.city}
-                            onChange={(e) => setBillingInfo({ ...billingInfo, city: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
-                            State
-                          </label>
-                          <input
-                            type="text"
-                            id="state"
-                            value={billingInfo.state}
-                            onChange={(e) => setBillingInfo({ ...billingInfo, state: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700 mb-2">
-                            ZIP Code
-                          </label>
-                          <input
-                            type="text"
-                            id="zipCode"
-                            value={billingInfo.zipCode}
-                            onChange={(e) => setBillingInfo({ ...billingInfo, zipCode: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">
-                            Country
-                          </label>
-                          <select
-                            id="country"
-                            value={billingInfo.country}
-                            onChange={(e) => setBillingInfo({ ...billingInfo, country: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
-                            required
-                          >
-                            <option value="US">United States</option>
-                            <option value="CA">Canada</option>
-                            <option value="MX">Mexico</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
+                {/* Payment Error Display */}
+                {paymentError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                    <div className="text-red-800 font-medium mb-2">Payment Error</div>
+                    <div className="text-red-600">{paymentError}</div>
                   </div>
-                </div>
+                )}
+
+                {/* Stripe Payment Form */}
+                {customerInfo.firstName && customerInfo.lastName && customerInfo.email && customerInfo.phone && (
+                  <StripePaymentForm
+                    amount={totalWithTax}
+                    customerInfo={customerInfo}
+                    items={items}
+                    onSuccess={handlePaymentSuccess}
+                    onError={handlePaymentError}
+                  />
+                )}
+
               </div>
 
               {/* Right Column - Order Summary */}
@@ -358,29 +209,21 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex justify-between items-center py-2 text-lg font-semibold">
                       <span>Total</span>
-                      <span>${((total || 0) * 1.08).toFixed(2)}</span>
+                      <span>${totalWithTax.toFixed(2)}</span>
                     </div>
                   </div>
 
-                  <button
-                    type="submit"
-                    disabled={isProcessing}
-                    className={`w-full mt-8 bg-[#1DA9C7] text-white px-6 py-3 rounded-lg font-medium shadow-lg 
-                      hover:bg-[#1897B2] transition-colors ${isProcessing ? 'opacity-75 cursor-not-allowed' : ''}`}
-                  >
-                    {isProcessing ? (
-                      <div className="flex items-center justify-center">
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Processing...
-                      </div>
-                    ) : (
-                      'Complete Purchase'
-                    )}
-                  </button>
+                  {/* Instructions */}
+                  <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Note:</strong> Complete your customer information above to proceed with payment.
+                      Payment will be processed securely through Stripe.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-          </form>
+          )}
         </div>
       </Layout>
     </>

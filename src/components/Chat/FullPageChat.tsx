@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/router';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
+import { SurfBotThinking } from './SurfBotThinking';
 import { chatService } from '@/lib/chatService';
 import { ChatMessage as ChatMessageType } from '@/types/chat';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,6 +14,7 @@ export const FullPageChat: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [conversationStage, setConversationStage] = useState<'initial' | 'engaged' | 'booking' | 'general'>('initial');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialMessageProcessed = useRef(false);
 
@@ -31,7 +33,7 @@ export const FullPageChat: React.FC = () => {
     if (!router.query.message) {
       const welcomeMessage: ChatMessageType = {
         id: uuidv4(),
-        content: "Hey! I'm **SurfBot** 🤙. Ask me anything about *lessons*, `pricing`, or what to bring!",
+        content: "Hey! I'm **SurfBot** 🤙. Ask me anything about *lessons*, **pricing**, or what to bring!",
         sender: 'bot',
         timestamp: new Date(),
       };
@@ -39,13 +41,31 @@ export const FullPageChat: React.FC = () => {
     }
   }, [router.query.message]);
 
+  // Function to cycle through conversation stages after each user message
+  const updateConversationStage = () => {
+    setConversationStage(currentStage => {
+      switch (currentStage) {
+        case 'initial':
+          return 'engaged';
+        case 'engaged':
+          return 'booking';
+        case 'booking':
+          return 'general';
+        case 'general':
+          return 'engaged'; // Cycle back to engaged, skipping initial
+        default:
+          return 'engaged';
+      }
+    });
+  };
+
   const processInitialMessage = async (message: string) => {
     const initialMessages: ChatMessageType[] = [];
     
     // Add welcome message first
     const welcomeMessage: ChatMessageType = {
       id: uuidv4(),
-      content: "Hey! I'm **SurfBot** 🤙. Ask me anything about *lessons*, `pricing`, or what to bring!",
+      content: "Hey! I'm **SurfBot** 🤙. Ask me anything about *lessons*, **pricing**, or what to bring!",
       sender: 'bot',
       timestamp: new Date(),
     };
@@ -75,6 +95,7 @@ export const FullPageChat: React.FC = () => {
       };
 
       setMessages(prevMessages => [...prevMessages, botMessage]);
+      updateConversationStage();
     } catch (err) {
       console.error('Error in processInitialMessage:', err);
       
@@ -128,6 +149,7 @@ export const FullPageChat: React.FC = () => {
       };
 
       setMessages(prevMessages => [...prevMessages, botMessage]);
+      updateConversationStage();
     } catch (err) {
       console.error('Error in handleSendMessage:', err);
       
@@ -151,25 +173,60 @@ export const FullPageChat: React.FC = () => {
     setMessages([]);
     setError(null);
     setIsLoading(false);
+    setConversationStage('initial');
     chatService.resetSession();
     initialMessageProcessed.current = false;
     
     // Add welcome message after reset
     const welcomeMessage: ChatMessageType = {
       id: uuidv4(),
-      content: "Hey! I'm **SurfBot** 🤙. Ask me anything about *lessons*, `pricing`, or what to bring!",
+      content: "Hey! I'm **SurfBot** 🤙. Ask me anything about *lessons*, **pricing**, or what to bring!",
       sender: 'bot',
       timestamp: new Date(),
     };
     setMessages([welcomeMessage]);
   };
 
-  const suggestionQuestions = [
-    "Tell me about Zek",
-    "What beaches are available?",
-    "What kind of lessons are available?",
-    "How is the pricing decided?"
-  ];
+  // Dynamic suggestion questions based on conversation stage
+  const getSuggestionQuestions = () => {
+    switch (conversationStage) {
+      case 'initial':
+        return [
+          "Tell me about Zek",
+          "What beaches are available?",
+          "What kind of lessons are available?",
+          "How is the pricing decided?"
+        ];
+      case 'engaged':
+        return [
+          "What should I bring?",
+          "How do I book a lesson?",
+          "What's the cancellation policy?",
+          "Do you provide equipment?"
+        ];
+      case 'booking':
+        return [
+          "Do you offer multi-lesson packages?",
+          "What's included in the lesson?",
+          "Group or private lesson?",
+          "Best beach for beginners?"
+        ];
+      case 'general':
+        return [
+          "What should I bring to my first lesson?",
+          "Any beginner tips?",
+          "How long are lessons?",
+          "Where do we meet?"
+        ];
+      default:
+        return [
+          "Tell me about Zek",
+          "What beaches are available?",
+          "What kind of lessons are available?",
+          "How is the pricing decided?"
+        ];
+    }
+  };
 
   // Show loading state during hydration
   if (!isClient) {
@@ -190,19 +247,7 @@ export const FullPageChat: React.FC = () => {
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
           ))}
-          {messages.length === 1 && (
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              {suggestionQuestions.map((question, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSendMessage(question)}
-                  className="bg-[#E8F7F7] text-gray-700 px-3 py-1.5 min-[427px]:px-4 min-[427px]:py-2 lg:px-6 lg:py-3 rounded-full text-xs min-[427px]:text-sm lg:text-base hover:bg-[#d8f1f1] transition-colors font-poppins text-left"
-                >
-                  {question}
-                </button>
-              ))}
-            </div>
-          )}
+          {isLoading && <SurfBotThinking />}
           {error && (
             <div className="text-red-500 text-sm p-4 bg-red-50 rounded-lg mb-4 border border-red-200">
               {error}
@@ -212,12 +257,37 @@ export const FullPageChat: React.FC = () => {
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="border-t bg-white">
+      {/* Input Area with Suggestion Prompts */}
+      <div className="bg-white border-t">
         <div className="w-full max-w-7xl mx-auto">
+          {/* Suggestion Prompts - Right above text box */}
+          <div className="px-4 min-[427px]:px-6 pt-3 pb-1">
+            <motion.div 
+              key={conversationStage}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="flex flex-wrap gap-2 justify-center"
+            >
+              {getSuggestionQuestions().map((question, index) => (
+                <motion.button
+                  key={`${conversationStage}-${index}`}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2, delay: index * 0.05 }}
+                  onClick={() => handleSendMessage(question)}
+                  disabled={isLoading}
+                  className="bg-[#E8F7F7] text-gray-700 px-3 py-1.5 min-[427px]:px-4 min-[427px]:py-2 rounded-full text-xs min-[427px]:text-sm hover:bg-[#d8f1f1] transition-colors font-poppins whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {question}
+                </motion.button>
+              ))}
+            </motion.div>
+          </div>
+          
+          {/* Text Input */}
           <ChatInput
             onSendMessage={handleSendMessage}
-            onReset={handleReset}
             isLoading={isLoading}
             disabled={isLoading}
           />

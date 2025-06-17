@@ -21,10 +21,11 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Zeko Surf - Learn to Surf with Confidence</title>
-        <meta name="description" content="Learn to surf with confidence. Ride your first wave today with Zeko Surf's personalized lessons." />
+        <title>Zek's Surf School - Learn to Surf with Confidence</title>
+        <meta name="description" content="Learn to surf with confidence. Ride your first wave today with Zek's Surf School's personalized lessons." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
+                  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>" />
+          <link rel="apple-touch-icon" href="/zeks-logo.png" />
       </Head>
 
       <Layout onBookClick={scrollToBooking}>

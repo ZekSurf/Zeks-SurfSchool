@@ -1,8 +1,8 @@
-# Zeko Surf School - Project Overview
+# Zek's Surf School - Project Overview
 
 ## 🏄‍♂️ Project Description
 
-**Zeko Surf School** is a modern, responsive web application built for a surf school business that specializes in teaching surfing lessons. The website combines e-commerce functionality with educational content and an AI-powered chat system to provide a comprehensive digital experience for surf enthusiasts.
+**Zek's Surf School** is a modern, responsive web application built for a surf school business that specializes in teaching surfing lessons. The website combines e-commerce functionality with educational content and an AI-powered chat system to provide a comprehensive digital experience for surf enthusiasts.
 
 ### Business Model
 - Surf lesson booking system with personalized scheduling
@@ -44,7 +44,7 @@ Surf Site/
 ├── public/                      # Static assets
 │   ├── images/                  # General images (surf photos, social icons)
 │   ├── beaches/                 # Beach-specific images
-│   ├── zeko-logo.png           # Brand logo assets
+│   ├── zeks-logo.png           # Brand logo assets
 │   └── favicon.ico             # Site favicon
 ├── src/
 │   ├── pages/                   # Next.js pages (routing)
@@ -312,7 +312,7 @@ The application is production-ready with:
 
 ## 📞 Contact & Business Information
 
-**Zeko Surf School** - Learn to Surf with Confidence
+**Zek's Surf School** - Learn to Surf with Confidence
 - Specializes in beginner-friendly surf instruction
 - Multiple Southern California beach locations
 - Personal and group lesson options

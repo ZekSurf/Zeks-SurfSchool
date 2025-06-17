@@ -1,7 +1,7 @@
 # 🔒 Admin Debug Portal Access
 
 ## Overview
-The admin debug portal is a secure development and troubleshooting tool for the Zeko Surf School booking system.
+The admin debug portal is a secure development and troubleshooting tool for the Zek's Surf School booking system.
 
 ## Access Information
 
@@ -14,7 +14,7 @@ The debug portal is accessible at a very long, obscure URL to prevent casual dis
 
 ### Default Password
 ```
-ZekoSurf2024!Admin#Debug
+ZeksSurf2024!Admin#Debug
 ```
 
 ### Custom Password (Recommended)

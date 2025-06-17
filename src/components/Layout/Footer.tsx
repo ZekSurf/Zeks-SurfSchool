@@ -45,6 +45,30 @@ export const Footer = () => {
             </Link>
           </div>
 
+          {/* Legal Links */}
+          <div className="flex flex-wrap justify-center gap-4 text-sm">
+            <Link 
+              href="/terms-and-conditions"
+              className="text-gray-400 hover:text-[#1DA9C7] transition-colors"
+            >
+              Terms & Conditions
+            </Link>
+            <span className="text-gray-600">•</span>
+            <Link 
+              href="/refund-cancellation-policy"
+              className="text-gray-400 hover:text-[#1DA9C7] transition-colors"
+            >
+              Refund & Cancellation Policy
+            </Link>
+            <span className="text-gray-600">•</span>
+            <Link 
+              href="/privacy-policy"
+              className="text-gray-400 hover:text-[#1DA9C7] transition-colors"
+            >
+              Privacy Policy
+            </Link>
+          </div>
+
           {/* Copyright Text */}
           <div className="text-gray-400 text-sm text-center">
             © 2025 Zek Surf School. All rights reserved.

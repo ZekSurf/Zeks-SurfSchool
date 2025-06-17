@@ -8,6 +8,7 @@ import Head from 'next/head';
 export default function ConfirmationPage() {
   const router = useRouter();
   const [confirmationNumber, setConfirmationNumber] = useState('');
+  const [paymentIntentId, setPaymentIntentId] = useState('');
 
   const scrollToBooking = () => {
     const bookingSection = document.getElementById('booking');
@@ -21,15 +22,22 @@ export default function ConfirmationPage() {
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     setConfirmationNumber(`SURF-${timestamp}-${random}`);
-  }, []);
+
+    // Get payment intent ID from URL parameters
+    const { payment_intent } = router.query;
+    if (payment_intent && typeof payment_intent === 'string') {
+      setPaymentIntentId(payment_intent);
+    }
+  }, [router.query]);
 
   return (
     <>
       <Head>
-        <title>Order Confirmation - Zeko Surf</title>
-        <meta name="description" content="Thank you for booking your surf lesson with Zeko Surf." />
+        <title>Order Confirmation - Zek's Surf School</title>
+        <meta name="description" content="Thank you for booking your surf lesson with Zek's Surf School." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
+                  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>" />
+          <link rel="apple-touch-icon" href="/zeks-logo.png" />
       </Head>
 
       <Navbar onBookClick={scrollToBooking} />
@@ -50,10 +58,16 @@ export default function ConfirmationPage() {
             <div className="bg-gray-50 rounded-lg p-6 mb-8">
               <h2 className="text-xl font-semibold text-gray-800 mb-2">Order Confirmation</h2>
               <p className="text-gray-600 mb-4">Your confirmation number is:</p>
-              <p className="text-2xl font-mono font-bold text-[#1DA9C7] mb-6">{confirmationNumber}</p>
+              <p className="text-2xl font-mono font-bold text-[#1DA9C7] mb-4">{confirmationNumber}</p>
+              {paymentIntentId && (
+                <div className="mb-4">
+                  <p className="text-sm text-gray-500 mb-1">Payment ID:</p>
+                  <p className="text-sm font-mono text-gray-600 break-all">{paymentIntentId}</p>
+                </div>
+              )}
               <div className="text-left space-y-3 text-gray-600">
                 <p>
-                  We've sent a confirmation email with your booking details and important information.
+                  ✅ <strong>Payment successful!</strong> We've sent a confirmation email with your booking details and important information.
                   Please check your inbox (and spam folder, just in case).
                 </p>
                 <p>

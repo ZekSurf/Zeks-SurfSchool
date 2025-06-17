@@ -52,8 +52,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onBookClick }) => {
       {/* Logo */}
       <button onClick={handleHomeClick} className="flex items-center">
         <Image
-          src="/zeko-logo.png"
-          alt="Zeko Surf"
+                      src="/zeks-logo.png"
+            alt="Zek's Surf School"
           width={100}
           height={100}
           className="w-[60px] h-[60px] min-[427px]:w-[80px] min-[427px]:h-[80px] lg:w-[100px] lg:h-[100px] object-contain"

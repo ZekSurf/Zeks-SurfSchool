@@ -210,7 +210,7 @@ export const BookingSection = () => {
   const pricingPlans: PricingPlan[] = [
     {
       name: 'Single Dip',
-      price: '$87 - $140',
+      price: 'Starting at $90',
       features: [
         'One session to try it out',
         'Learn the Basics',
@@ -219,7 +219,7 @@ export const BookingSection = () => {
     },
     {
       name: 'Double Drop',
-      price: '$165 - $260',
+      price: 'Starting at $165',
       discount: '15% OFF!',
       features: [
         'Two sessions to build confidence',
@@ -229,7 +229,7 @@ export const BookingSection = () => {
     },
     {
       name: 'Triple Wave',
-      price: '$240 - $355',
+      price: 'Starting at $245',
       discount: '25% OFF!',
       features: [
         'Three sessions for serious progress',
@@ -534,7 +534,10 @@ export const BookingSection = () => {
                 </div>
               )}
               <h3 className="text-2xl font-bold mb-4 font-poppins">{plan.name}</h3>
-              <p className="text-2xl font-semibold mb-6 font-poppins">{plan.price}</p>
+              <p className="text-2xl mb-6 font-poppins">
+                <span className="font-normal">Starting at </span>
+                <span className="font-bold">{plan.price.replace('Starting at ', '')}</span>
+              </p>
               <ul className="space-y-4 mb-8 font-poppins">
                 {plan.features.map((feature, idx) => (
                   <li key={idx} className="flex items-start">
@@ -549,6 +552,12 @@ export const BookingSection = () => {
 
         {/* Beach Selection */}
         <div className="mb-12 relative">
+          <div className="text-center mb-6">
+            <h2 className="text-4xl font-bold text-gray-900 mb-2 font-poppins">
+              First, select your <span className="text-[#1DA9C7]">beach</span>
+            </h2>
+            <p className="text-gray-600 font-poppins">Choose from our three beautiful surf locations</p>
+          </div>
           <button
             onClick={() => setIsBeachDropdownOpen(!isBeachDropdownOpen)}
             className="w-full p-4 border rounded-lg mb-2 font-poppins bg-white flex justify-between items-center hover:border-[#1DA9C7] transition-colors"
@@ -661,6 +670,14 @@ export const BookingSection = () => {
         </div>
 
         {/* Calendar Section */}
+        {selectedBeach && (
+          <div className="text-center mb-8">
+            <h2 className="text-4xl font-bold text-gray-900 mb-2 font-poppins">
+              Then, select a <span className="text-[#1DA9C7]">date and time</span>
+            </h2>
+            <p className="text-gray-600 font-poppins">Pick your perfect surf session</p>
+          </div>
+        )}
         <div className="grid min-[1135px]:grid-cols-2 gap-8">
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex items-center justify-between mb-6">

@@ -3,6 +3,8 @@ import Head from 'next/head';
 import { bookingService } from '@/lib/bookingService';
 import { bookingCache } from '@/lib/bookingCache';
 import { chatService } from '@/lib/chatService';
+import { reviewService } from '@/lib/reviewService';
+import { ReviewSubmission, ReviewStats } from '@/types/review';
 
 interface DebugInfo {
   environment: string;
@@ -16,6 +18,7 @@ interface DebugInfo {
   apiResponse: any;
   lastError: any;
   chatInfo: any;
+  reviewInfo: any;
 }
 
 export default function AdminDebugPortal() {
@@ -27,9 +30,15 @@ export default function AdminDebugPortal() {
   const [isLoading, setIsLoading] = useState(false);
   const [lastAction, setLastAction] = useState<string>('');
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Review management state
+  const [reviews, setReviews] = useState<ReviewSubmission[]>([]);
+  const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
+  const [selectedReview, setSelectedReview] = useState<ReviewSubmission | null>(null);
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   // The admin password - use environment variable or fallback to default
-  const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_DEBUG_PASSWORD || 'ZekoSurf2024!Admin#Debug';
+  const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_DEBUG_PASSWORD || 'ZeksSurf2024!Admin#Debug';
 
   useEffect(() => {
     // Check if already authenticated in session
@@ -37,6 +46,7 @@ export default function AdminDebugPortal() {
     if (authStatus === 'authenticated') {
       setIsAuthenticated(true);
       loadDebugInfo();
+      loadReviews();
     }
 
     // Check if user is locked out
@@ -60,6 +70,7 @@ export default function AdminDebugPortal() {
       setLoginAttempts(0);
       localStorage.removeItem('admin_debug_lockout');
       loadDebugInfo();
+      loadReviews();
     } else {
       const newAttempts = loginAttempts + 1;
       setLoginAttempts(newAttempts);
@@ -97,7 +108,8 @@ export default function AdminDebugPortal() {
         apiPayload: bookingCache.lastApiPayload,
         apiResponse: bookingCache.lastApiResponse,
         lastError: bookingCache.lastError,
-        chatInfo: getChatInfo()
+        chatInfo: getChatInfo(),
+        reviewInfo: getReviewInfo()
       };
       
       setDebugInfo(info);
@@ -163,6 +175,30 @@ export default function AdminDebugPortal() {
     }
   };
 
+  const getReviewInfo = () => {
+    try {
+      const stats = reviewService.getReviewStats();
+      const allReviews = reviewService.getAllReviews();
+      const pendingReviews = reviewService.getReviewsByStatus('pending');
+      
+      return {
+        totalReviews: allReviews.length,
+        pendingReviews: pendingReviews.length,
+        approvedReviews: reviewService.getReviewsByStatus('approved').length,
+        rejectedReviews: reviewService.getReviewsByStatus('rejected').length,
+        averageRating: stats.averageOverallRating,
+        recommendationPercentage: stats.recommendationPercentage,
+        recentReviews: allReviews.slice(0, 5),
+        stats: stats
+      };
+    } catch (error) {
+      return {
+        error: 'Failed to get review info',
+        details: error?.toString() || 'Unknown error'
+      };
+    }
+  };
+
   const handleClearAllData = () => {
     if (confirm('Are you sure you want to clear all localStorage and sessionStorage data?')) {
       localStorage.clear();
@@ -200,11 +236,81 @@ export default function AdminDebugPortal() {
     
     const link = document.createElement('a');
     link.href = url;
-    link.download = `zeko-debug-${new Date().toISOString().split('T')[0]}.json`;
+          link.download = `zeks-debug-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     
     URL.revokeObjectURL(url);
     setLastAction('Debug data exported');
+  };
+
+  // Review management functions
+  const loadReviews = () => {
+    try {
+      const allReviews = reviewService.getAllReviews();
+      const stats = reviewService.getReviewStats();
+      setReviews(allReviews);
+      setReviewStats(stats);
+      setLastAction('Reviews loaded successfully');
+    } catch (error) {
+      setLastAction(`Error loading reviews: ${error}`);
+    }
+  };
+
+  const handleReviewStatusUpdate = (reviewId: string, status: 'approved' | 'rejected', adminNotes?: string) => {
+    try {
+      const success = reviewService.updateReviewStatus(reviewId, status, adminNotes, 'Admin');
+      if (success) {
+        loadReviews();
+        loadDebugInfo();
+        setLastAction(`Review ${status} successfully`);
+        setSelectedReview(null);
+      } else {
+        setLastAction('Failed to update review status');
+      }
+    } catch (error) {
+      setLastAction(`Error updating review: ${error}`);
+    }
+  };
+
+  const handleDeleteReview = (reviewId: string) => {
+    if (confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
+      try {
+        const success = reviewService.deleteReview(reviewId);
+        if (success) {
+          loadReviews();
+          loadDebugInfo();
+          setLastAction('Review deleted successfully');
+          setSelectedReview(null);
+        } else {
+          setLastAction('Failed to delete review');
+        }
+      } catch (error) {
+        setLastAction(`Error deleting review: ${error}`);
+      }
+    }
+  };
+
+  const exportReviews = () => {
+    try {
+      const reviewData = reviewService.exportReviews();
+      const dataBlob = new Blob([reviewData], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `zeks-reviews-${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      
+      URL.revokeObjectURL(url);
+      setLastAction('Reviews exported successfully');
+    } catch (error) {
+      setLastAction(`Error exporting reviews: ${error}`);
+    }
+  };
+
+  const getFilteredReviews = () => {
+    if (reviewFilter === 'all') return reviews;
+    return reviews.filter(review => review.status === reviewFilter);
   };
 
   if (!isAuthenticated) {
@@ -272,7 +378,7 @@ export default function AdminDebugPortal() {
   return (
     <>
       <Head>
-        <title>Admin Debug Portal - Zeko Surf School</title>
+        <title>Admin Debug Portal - Zek's Surf School</title>
         <meta name="robots" content="noindex, nofollow" />
       </Head>
 
@@ -284,7 +390,7 @@ export default function AdminDebugPortal() {
               <div className="text-2xl">🔧</div>
               <div>
                 <h1 className="text-xl font-bold">Admin Debug Portal</h1>
-                <p className="text-sm text-gray-300">Zeko Surf School - System Diagnostics</p>
+                <p className="text-sm text-gray-300">Zek's Surf School - System Diagnostics</p>
               </div>
             </div>
             
@@ -329,7 +435,7 @@ export default function AdminDebugPortal() {
 
         <div className="max-w-7xl mx-auto p-6">
           {/* Quick Actions */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
             <button
               onClick={handleTestAPI}
               disabled={isLoading}
@@ -362,6 +468,12 @@ export default function AdminDebugPortal() {
             >
               🧪 Cache Demo
             </button>
+            <button
+              onClick={() => window.open('/review?paymentId=DEMO123&customerName=John%20Doe&customerEmail=john@example.com&lessonDate=2024-01-15&beach=Doheny&instructorName=Mike', '_blank')}
+              className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+            >
+              ⭐ Review Demo
+            </button>
           </div>
 
           {/* Tabs */}
@@ -370,6 +482,7 @@ export default function AdminDebugPortal() {
               <nav className="flex space-x-8 px-6">
                 {[
                   { id: 'overview', label: '📊 Overview', icon: '📊' },
+                  { id: 'reviews', label: '⭐ Reviews', icon: '⭐' },
                   { id: 'cache', label: '🗄️ Cache System', icon: '🗄️' },
                   { id: 'storage', label: '💾 Storage', icon: '💾' },
                   { id: 'api', label: '🌐 API Debug', icon: '🌐' },
@@ -421,9 +534,15 @@ export default function AdminDebugPortal() {
                     </div>
                     <div className="bg-purple-50 p-4 rounded-lg">
                       <div className="text-2xl font-bold text-purple-600">
-                        {debugInfo.environment.toUpperCase()}
+                        {debugInfo.reviewInfo?.totalReviews || 0}
                       </div>
-                      <div className="text-sm text-gray-600">Environment</div>
+                      <div className="text-sm text-gray-600">Total Reviews</div>
+                    </div>
+                    <div className="bg-indigo-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-indigo-600">
+                        {debugInfo.reviewInfo?.pendingReviews || 0}
+                      </div>
+                      <div className="text-sm text-gray-600">Pending Reviews</div>
                     </div>
                   </div>
 
@@ -441,6 +560,270 @@ export default function AdminDebugPortal() {
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'reviews' && (
+                <div className="space-y-6">
+                  {/* Review Statistics */}
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {reviewStats?.totalReviews || 0}
+                      </div>
+                      <div className="text-sm text-gray-600">Total Reviews</div>
+                    </div>
+                    <div className="bg-yellow-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-yellow-600">
+                        {reviews.filter(r => r.status === 'pending').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Pending</div>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">
+                        {reviews.filter(r => r.status === 'approved').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Approved</div>
+                    </div>
+                    <div className="bg-red-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-red-600">
+                        {reviews.filter(r => r.status === 'rejected').length}
+                      </div>
+                      <div className="text-sm text-gray-600">Rejected</div>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {reviewStats?.averageOverallRating?.toFixed(1) || '0.0'}
+                      </div>
+                      <div className="text-sm text-gray-600">Avg Rating</div>
+                    </div>
+                  </div>
+
+                  {/* Review Management Controls */}
+                  <div className="bg-white p-4 rounded-lg border">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">Review Management</h3>
+                      <div className="flex items-center space-x-2">
+                        <select
+                          value={reviewFilter}
+                          onChange={(e) => setReviewFilter(e.target.value as any)}
+                          className="px-3 py-1 border border-gray-300 rounded text-sm"
+                        >
+                          <option value="all">All Reviews</option>
+                          <option value="pending">Pending</option>
+                          <option value="approved">Approved</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                        <button
+                          onClick={loadReviews}
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                        >
+                          🔄 Refresh
+                        </button>
+                        <button
+                          onClick={exportReviews}
+                          className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                        >
+                          📁 Export
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Reviews List */}
+                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                      {getFilteredReviews().length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <div className="text-4xl mb-2">📝</div>
+                          <p>No reviews found</p>
+                          <p className="text-sm mt-1">
+                            {reviewFilter === 'all' ? 'No reviews have been submitted yet.' : `No ${reviewFilter} reviews found.`}
+                          </p>
+                        </div>
+                      ) : (
+                        getFilteredReviews().map((review) => (
+                          <div key={review.id} className="border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <h4 className="font-semibold text-gray-900">{review.reviewTitle}</h4>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    review.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                    review.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                    'bg-red-100 text-red-800'
+                                  }`}>
+                                    {review.status.toUpperCase()}
+                                  </span>
+                                  <div className="flex items-center">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <span key={star} className={`text-sm ${
+                                        star <= review.overallRating ? 'text-yellow-400' : 'text-gray-300'
+                                      }`}>
+                                        ★
+                                      </span>
+                                    ))}
+                                    <span className="ml-1 text-sm text-gray-600">
+                                      ({review.overallRating}/5)
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600 mb-2">
+                                  <div><strong>Customer:</strong> {review.customerName}</div>
+                                  <div><strong>Beach:</strong> {review.beach || 'N/A'}</div>
+                                  <div><strong>Date:</strong> {review.lessonDate || 'N/A'}</div>
+                                  <div><strong>Payment ID:</strong> {review.paymentId}</div>
+                                </div>
+                                
+                                <p className="text-sm text-gray-700 mb-2 line-clamp-2">
+                                  {review.reviewText}
+                                </p>
+                                
+                                <div className="text-xs text-gray-500">
+                                  Submitted: {new Date(review.submittedAt).toLocaleString()}
+                                  {review.approvedAt && (
+                                    <span className="ml-4">
+                                      Approved: {new Date(review.approvedAt).toLocaleString()}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center space-x-2 ml-4">
+                                <button
+                                  onClick={() => setSelectedReview(review)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                                >
+                                  View
+                                </button>
+                                {review.status === 'pending' && (
+                                  <>
+                                    <button
+                                      onClick={() => handleReviewStatusUpdate(review.id, 'approved')}
+                                      className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                                    >
+                                      ✓ Approve
+                                    </button>
+                                    <button
+                                      onClick={() => handleReviewStatusUpdate(review.id, 'rejected')}
+                                      className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                                    >
+                                      ✗ Reject
+                                    </button>
+                                  </>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteReview(review.id)}
+                                  className="px-3 py-1 bg-gray-600 text-white rounded text-sm hover:bg-gray-700"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Review Detail Modal */}
+                  {selectedReview && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                      <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
+                        <div className="p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold">{selectedReview.reviewTitle}</h3>
+                            <button
+                              onClick={() => setSelectedReview(null)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                          
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div><strong>Customer:</strong> {selectedReview.customerName}</div>
+                              <div><strong>Email:</strong> {selectedReview.customerEmail}</div>
+                              <div><strong>Payment ID:</strong> {selectedReview.paymentId}</div>
+                              <div><strong>Beach:</strong> {selectedReview.beach || 'N/A'}</div>
+                              <div><strong>Lesson Date:</strong> {selectedReview.lessonDate || 'N/A'}</div>
+                              <div><strong>Instructor:</strong> {selectedReview.instructorName || 'N/A'}</div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="text-center">
+                                <div className="text-lg font-bold">{selectedReview.overallRating}/5</div>
+                                <div className="text-sm text-gray-600">Overall</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-bold">{selectedReview.instructorRating}/5</div>
+                                <div className="text-sm text-gray-600">Instructor</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-bold">{selectedReview.equipmentRating}/5</div>
+                                <div className="text-sm text-gray-600">Equipment</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-lg font-bold">{selectedReview.experienceRating}/5</div>
+                                <div className="text-sm text-gray-600">Experience</div>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <strong>Review:</strong>
+                              <p className="mt-1 text-gray-700">{selectedReview.reviewText}</p>
+                            </div>
+                            
+                            <div>
+                              <strong>Would Recommend:</strong> {selectedReview.wouldRecommend ? 'Yes' : 'No'}
+                            </div>
+                            
+                            {selectedReview.favoriteAspect && (
+                              <div>
+                                <strong>Favorite Aspect:</strong>
+                                <p className="mt-1 text-gray-700">{selectedReview.favoriteAspect}</p>
+                              </div>
+                            )}
+                            
+                            {selectedReview.improvementSuggestions && (
+                              <div>
+                                <strong>Improvement Suggestions:</strong>
+                                <p className="mt-1 text-gray-700">{selectedReview.improvementSuggestions}</p>
+                              </div>
+                            )}
+                            
+                            <div className="text-sm text-gray-500">
+                              <div>Submitted: {new Date(selectedReview.submittedAt).toLocaleString()}</div>
+                              {selectedReview.ipAddress && <div>IP: {selectedReview.ipAddress}</div>}
+                              {selectedReview.approvedAt && (
+                                <div>Approved: {new Date(selectedReview.approvedAt).toLocaleString()} by {selectedReview.approvedBy}</div>
+                              )}
+                              {selectedReview.adminNotes && (
+                                <div>Admin Notes: {selectedReview.adminNotes}</div>
+                              )}
+                            </div>
+                            
+                            {selectedReview.status === 'pending' && (
+                              <div className="flex space-x-2 pt-4 border-t">
+                                <button
+                                  onClick={() => handleReviewStatusUpdate(selectedReview.id, 'approved')}
+                                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                >
+                                  ✓ Approve Review
+                                </button>
+                                <button
+                                  onClick={() => handleReviewStatusUpdate(selectedReview.id, 'rejected')}
+                                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                                >
+                                  ✗ Reject Review
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
