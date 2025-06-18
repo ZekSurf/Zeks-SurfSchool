@@ -50,7 +50,14 @@ export default function WeeklyCalendar({ selectedWeek, onBookingClick }: WeeklyC
 
   const getBookingsForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return bookings.filter(booking => booking.date === dateStr);
+    return bookings
+      .filter(booking => booking.date === dateStr)
+      .sort((a, b) => {
+        // Sort by start time (earliest first)
+        const timeA = new Date(a.startTime).getTime();
+        const timeB = new Date(b.startTime).getTime();
+        return timeA - timeB;
+      });
   };
 
   const formatTime = (timeStr: string) => {
@@ -91,8 +98,8 @@ export default function WeeklyCalendar({ selectedWeek, onBookingClick }: WeeklyC
 
   return (
     <div className="bg-white rounded-lg shadow-sm border">
-      {/* Calendar Header */}
-      <div className="grid grid-cols-7 border-b">
+      {/* Desktop Calendar Header */}
+      <div className="hidden md:grid grid-cols-7 border-b">
         {dayNames.map((dayName, index) => (
           <div key={dayName} className="p-4 text-center border-r last:border-r-0">
             <div className="font-semibold text-gray-800">{dayName}</div>
@@ -106,8 +113,8 @@ export default function WeeklyCalendar({ selectedWeek, onBookingClick }: WeeklyC
         ))}
       </div>
 
-      {/* Calendar Body */}
-      <div className="grid grid-cols-7">
+      {/* Desktop Calendar Body */}
+      <div className="hidden md:grid grid-cols-7">
         {weekDays.map((date, index) => {
           const dayBookings = getBookingsForDate(date);
           const isToday = date.toDateString() === new Date().toDateString();
@@ -156,6 +163,93 @@ export default function WeeklyCalendar({ selectedWeek, onBookingClick }: WeeklyC
                   No lessons
                 </div>
               )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Mobile Calendar - Vertical Layout */}
+      <div className="md:hidden">
+        {weekDays.map((date, index) => {
+          const dayBookings = getBookingsForDate(date);
+          const isToday = date.toDateString() === new Date().toDateString();
+          
+          return (
+            <div
+              key={index}
+              className={`border-b last:border-b-0 ${
+                isToday ? 'bg-blue-50' : ''
+              }`}
+            >
+              {/* Mobile Day Header */}
+              <div className={`p-4 border-b bg-gray-50 ${
+                isToday ? 'bg-blue-100' : ''
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className={`font-semibold text-lg ${
+                      isToday ? 'text-blue-600' : 'text-gray-800'
+                    }`}>
+                      {dayNames[index]}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {date.toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </div>
+                  </div>
+                  <div className={`text-2xl font-bold ${
+                    isToday ? 'text-blue-600' : 'text-gray-400'
+                  }`}>
+                    {date.getDate()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Bookings List */}
+              <div className="p-4">
+                {dayBookings.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <div className="text-lg mb-1">📅</div>
+                    <div className="text-sm">No lessons scheduled</div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {dayBookings.map((booking) => (
+                      <div
+                        key={booking.id}
+                        onClick={() => onBookingClick(booking)}
+                        className={`p-4 rounded-lg border-2 cursor-pointer active:scale-95 transition-all ${getStatusColor(booking.status)} hover:shadow-md`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="font-semibold text-base">
+                            {booking.customerName}
+                          </div>
+                          {booking.isPrivate && (
+                            <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+                              Private
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm opacity-90">
+                          <div className="flex items-center gap-1">
+                            <span>🕒</span>
+                            <span>{formatTime(booking.startTime)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>🏖️</span>
+                            <span>{booking.beach}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs opacity-75">
+                          Tap for details
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}

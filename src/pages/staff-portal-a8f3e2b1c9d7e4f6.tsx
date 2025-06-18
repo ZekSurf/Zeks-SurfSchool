@@ -4,6 +4,7 @@ import { CompletedBooking } from '@/types/booking';
 import { supabaseStaffService } from '@/lib/supabaseStaffService';
 import WeeklyCalendar from '@/components/Staff/WeeklyCalendar';
 import BookingDetailsModal from '@/components/Staff/BookingDetailsModal';
+import { pushNotificationService } from '@/lib/pushNotificationService';
 
 export default function StaffPortal() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -16,6 +17,8 @@ export default function StaffPortal() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  const [notificationStatus, setNotificationStatus] = useState<'checking' | 'enabled' | 'disabled' | 'unsupported'>('checking');
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
     // Check if already authenticated in session
@@ -31,13 +34,72 @@ export default function StaffPortal() {
     }
   }, []);
 
-  // Auto-sync when authenticated
+  // Auto-sync when authenticated and setup push notifications
   useEffect(() => {
     if (isAuthenticated) {
       // Auto-sync bookings on login (silent sync)
       handleSyncBookings();
+      
+      // Check push notification status
+      checkNotificationStatus();
     }
   }, [isAuthenticated]);
+
+  const checkNotificationStatus = async () => {
+    if (!pushNotificationService.isNotificationSupported()) {
+      setNotificationStatus('unsupported');
+      return;
+    }
+
+    const permission = pushNotificationService.getPermissionStatus();
+    const subscribed = await pushNotificationService.isSubscribed();
+    
+    setIsSubscribed(subscribed);
+    
+    if (permission === 'granted' && subscribed) {
+      setNotificationStatus('enabled');
+    } else if (permission === 'denied') {
+      setNotificationStatus('disabled');
+    } else {
+      setNotificationStatus('disabled');
+    }
+  };
+
+  const handleEnableNotifications = async () => {
+    try {
+      const subscription = await pushNotificationService.subscribe();
+      if (subscription) {
+        setNotificationStatus('enabled');
+        setIsSubscribed(true);
+        alert('✅ Push notifications enabled! You\'ll receive alerts for new bookings.');
+      } else {
+        alert('❌ Failed to enable notifications. Please check your browser settings.');
+      }
+    } catch (error) {
+      console.error('Error enabling notifications:', error);
+      alert('❌ Failed to enable notifications. Please try again.');
+    }
+  };
+
+  const handleDisableNotifications = async () => {
+    try {
+      const success = await pushNotificationService.unsubscribe();
+      if (success) {
+        setNotificationStatus('disabled');
+        setIsSubscribed(false);
+        alert('✅ Push notifications disabled.');
+      } else {
+        alert('❌ Failed to disable notifications.');
+      }
+    } catch (error) {
+      console.error('Error disabling notifications:', error);
+      alert('❌ Failed to disable notifications. Please try again.');
+    }
+  };
+
+  const handleTestNotification = () => {
+    pushNotificationService.testNotification();
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -225,14 +287,14 @@ export default function StaffPortal() {
         {/* Header */}
         <div className="bg-white shadow-sm border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-4">
+            <div className="flex justify-between items-center py-3 md:py-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-800">Staff Portal</h1>
-                <p className="text-gray-600">Weekly Booking Schedule</p>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-800">Staff Portal</h1>
+                <p className="text-sm md:text-base text-gray-600 hidden sm:block">Weekly Booking Schedule</p>
               </div>
               <button
                 onClick={handleLogout}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                className="bg-red-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm md:text-base"
               >
                 Logout
               </button>
@@ -241,32 +303,34 @@ export default function StaffPortal() {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
           {/* Week Navigation */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigateWeek('prev')}
-                className="bg-white border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors"
-              >
-                ← Previous Week
-              </button>
-              <button
-                onClick={goToCurrentWeek}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Current Week
-              </button>
-              <button
-                onClick={() => navigateWeek('next')}
-                className="bg-white border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors"
-              >
-                Next Week →
-              </button>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 md:mb-6 gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigateWeek('prev')}
+                  className="bg-white border border-gray-300 rounded-lg px-3 md:px-4 py-2 hover:bg-gray-50 transition-colors text-sm md:text-base flex-1 sm:flex-none"
+                >
+                  ← Prev
+                </button>
+                <button
+                  onClick={goToCurrentWeek}
+                  className="bg-blue-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm md:text-base flex-1 sm:flex-none"
+                >
+                  Current
+                </button>
+                <button
+                  onClick={() => navigateWeek('next')}
+                  className="bg-white border border-gray-300 rounded-lg px-3 md:px-4 py-2 hover:bg-gray-50 transition-colors text-sm md:text-base flex-1 sm:flex-none"
+                >
+                  Next →
+                </button>
+              </div>
               <button
                 onClick={handleSyncBookings}
                 disabled={isSyncing}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-green-400 transition-colors flex items-center gap-2"
+                className="bg-green-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-green-400 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
               >
                 {isSyncing ? (
                   <>
@@ -281,16 +345,27 @@ export default function StaffPortal() {
               </button>
             </div>
 
-            <div className="text-lg font-semibold text-gray-800">
-              {weekRange.start.toLocaleDateString('en-US', { 
-                month: 'long', 
-                day: 'numeric',
-                year: 'numeric'
-              })} - {weekRange.end.toLocaleDateString('en-US', { 
-                month: 'long', 
-                day: 'numeric',
-                year: 'numeric'
-              })}
+            <div className="text-base md:text-lg font-semibold text-gray-800 text-center md:text-left">
+              <span className="hidden md:inline">
+                {weekRange.start.toLocaleDateString('en-US', { 
+                  month: 'long', 
+                  day: 'numeric'
+                })} - {weekRange.end.toLocaleDateString('en-US', { 
+                  month: 'long', 
+                  day: 'numeric',
+                  year: 'numeric'
+                })}
+              </span>
+              <span className="md:hidden">
+                {weekRange.start.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric'
+                })} - {weekRange.end.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric',
+                  year: '2-digit'
+                })}
+              </span>
             </div>
           </div>
 
@@ -305,6 +380,75 @@ export default function StaffPortal() {
             </div>
           )}
 
+          {/* Push Notification Controls */}
+          <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 md:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">📱</span>
+                  <div>
+                    <h3 className="font-medium text-gray-800 text-sm md:text-base">Push Notifications</h3>
+                    <p className="text-xs md:text-sm text-gray-600">
+                      {notificationStatus === 'checking' && 'Checking status...'}
+                      {notificationStatus === 'enabled' && '✅ Enabled - You\'ll receive alerts for new bookings'}
+                      {notificationStatus === 'disabled' && '❌ Disabled - Enable to get booking alerts'}
+                      {notificationStatus === 'unsupported' && '❌ Not supported on this device/browser'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                {notificationStatus !== 'unsupported' && (
+                  <>
+                    {notificationStatus === 'disabled' || !isSubscribed ? (
+                      <button
+                        onClick={handleEnableNotifications}
+                        className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                      >
+                        Enable Alerts
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleDisableNotifications}
+                        className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
+                      >
+                        Disable
+                      </button>
+                    )}
+                    
+                    {notificationStatus === 'enabled' && (
+                      <button
+                        onClick={handleTestNotification}
+                        className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                      >
+                        Test
+                      </button>
+                    )}
+                  </>
+                )}
+                
+                {pushNotificationService.isIOSDevice() && notificationStatus === 'disabled' && (
+                  <div className="hidden sm:block text-xs text-gray-500 max-w-xs">
+                    On iOS: Add this page to your home screen first, then enable notifications
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* iOS Instructions */}
+            {pushNotificationService.isIOSDevice() && notificationStatus === 'disabled' && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg sm:hidden">
+                <h4 className="font-medium text-blue-800 text-sm mb-2">📱 iOS Setup Instructions:</h4>
+                <ol className="text-blue-700 text-xs space-y-1">
+                  {pushNotificationService.getIOSInstructions().map((instruction, index) => (
+                    <li key={index}>{instruction}</li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </div>
+
           {/* Calendar */}
           <WeeklyCalendar
             key={`${selectedWeek.toISOString()}-${refreshKey}`}
@@ -313,14 +457,14 @@ export default function StaffPortal() {
           />
 
           {/* Instructions */}
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-blue-800 mb-2">How to use the Staff Portal</h3>
+          <div className="mt-6 md:mt-8 bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
+            <h3 className="text-base md:text-lg font-semibold text-blue-800 mb-2">How to use the Staff Portal</h3>
             <ul className="text-blue-700 space-y-1 text-sm">
-              <li>• Click on any booking to view detailed information</li>
+              <li>• <span className="hidden md:inline">Click</span><span className="md:hidden">Tap</span> on any booking to view detailed information</li>
               <li>• Use the status update buttons to mark lessons as completed or cancelled</li>
-              <li>• Navigate between weeks using the Previous/Next Week buttons</li>
-              <li>• Click "Current Week" to quickly return to this week's schedule</li>
-              <li>• Contact information is clickable for quick communication</li>
+              <li>• Navigate between weeks using the <span className="hidden md:inline">Previous/Next Week</span><span className="md:hidden">Prev/Next</span> buttons</li>
+              <li>• <span className="hidden md:inline">Click</span><span className="md:hidden">Tap</span> "Current<span className="hidden md:inline"> Week</span>" to quickly return to this week's schedule</li>
+              <li>• Contact information is <span className="hidden md:inline">clickable</span><span className="md:hidden">tappable</span> for quick communication</li>
             </ul>
           </div>
         </div>

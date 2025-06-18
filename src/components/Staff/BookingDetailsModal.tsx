@@ -68,24 +68,24 @@ export default function BookingDetailsModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl md:max-h-[90vh] max-h-[95vh] overflow-y-auto md:m-4 m-2">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold text-gray-800">Booking Details</h2>
+        <div className="flex justify-between items-center p-4 md:p-6 border-b">
+          <h2 className="text-xl md:text-2xl font-bold text-gray-800">Booking Details</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-2xl"
+            className="text-gray-400 hover:text-gray-600 text-3xl md:text-2xl p-2 md:p-0 -m-2 md:m-0"
           >
             ×
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 md:p-6 space-y-4 md:space-y-6">
           {/* Status */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="text-lg font-semibold">Status:</span>
+              <span className="text-base md:text-lg font-semibold">Status:</span>
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeClass(booking.status)}`}>
                 {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
               </span>
@@ -96,9 +96,9 @@ export default function BookingDetailsModal({
           </div>
 
           {/* Customer Information */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">Customer Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gray-50 p-3 md:p-4 rounded-lg">
+            <h3 className="text-base md:text-lg font-semibold mb-3 text-gray-800">Customer Information</h3>
+            <div className="grid grid-cols-1 gap-3 md:gap-4">
               <div>
                 <span className="font-medium text-gray-600">Name:</span>
                 <div className="text-gray-800">{booking.customerName}</div>
@@ -123,9 +123,9 @@ export default function BookingDetailsModal({
           </div>
 
           {/* Lesson Information */}
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">Lesson Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-blue-50 p-3 md:p-4 rounded-lg">
+            <h3 className="text-base md:text-lg font-semibold mb-3 text-gray-800">Lesson Information</h3>
+            <div className="grid grid-cols-1 gap-3 md:gap-4">
               <div>
                 <span className="font-medium text-gray-600">Beach:</span>
                 <div className="text-gray-800">{booking.beach}</div>
@@ -163,9 +163,9 @@ export default function BookingDetailsModal({
           </div>
 
           {/* Payment Information */}
-          <div className="bg-green-50 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">Payment Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-green-50 p-3 md:p-4 rounded-lg">
+            <h3 className="text-base md:text-lg font-semibold mb-3 text-gray-800">Payment Information</h3>
+            <div className="grid grid-cols-1 gap-3 md:gap-4">
               <div>
                 <span className="font-medium text-gray-600">Amount:</span>
                 <div className="text-gray-800 text-lg font-semibold">
@@ -189,8 +189,8 @@ export default function BookingDetailsModal({
 
           {/* Status Update Actions */}
           <div className="border-t pt-4">
-            <h3 className="text-lg font-semibold mb-3 text-gray-800">Update Status</h3>
-            <div className="flex flex-wrap gap-2">
+            <h3 className="text-base md:text-lg font-semibold mb-3 text-gray-800">Update Status</h3>
+            <div className="flex flex-col md:flex-row gap-3 md:gap-2">
               {(['confirmed', 'completed', 'cancelled'] as const).map((status) => (
                 <button
                   key={status}

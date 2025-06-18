@@ -1,0 +1,31 @@
+{
+  "name": "Zek's Surf School - Staff Portal",
+  "short_name": "Surf Staff",
+  "description": "Staff portal for managing surf lesson bookings",
+  "start_url": "/staff-portal-a8f3e2b1c9d7e4f6",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/zek-surf-icon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/zek-surf.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/zek-surf.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "en-US",
+  "dir": "ltr"
+} 

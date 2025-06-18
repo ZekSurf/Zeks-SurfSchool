@@ -108,7 +108,8 @@ class SupabaseStaffService {
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
-        .order('lesson_date', { ascending: true });
+        .order('lesson_date', { ascending: true })
+        .order('start_time', { ascending: true });
 
       if (error) {
         console.error('Supabase error fetching bookings:', error);
@@ -137,7 +138,8 @@ class SupabaseStaffService {
         .select('*')
         .gte('lesson_date', startDateStr)
         .lte('lesson_date', endDateStr)
-        .order('lesson_date', { ascending: true });
+        .order('lesson_date', { ascending: true })
+        .order('start_time', { ascending: true });
 
       if (error) {
         console.error('Supabase error fetching week bookings:', error);

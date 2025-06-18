@@ -199,6 +199,53 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     if (supabaseResult.success) {
       console.log('✅ Booking saved to Supabase successfully!');
       console.log('📋 Confirmation number:', supabaseResult.booking?.confirmationNumber);
+      
+      // Send push notification to staff devices
+      try {
+        console.log('📱 Sending push notification to staff...');
+        
+        // Format date and time for notification
+        const lessonDate = new Date(firstBooking.date).toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric'
+        });
+        const lessonTime = firstBooking.time.split(' - ')[0]; // Get start time only
+        
+        const notificationPayload = {
+          title: '🏄‍♂️ New Surf Lesson Booked!',
+          body: `${metadata.customerName} booked a lesson at ${firstBooking.beach} on ${lessonDate} at ${lessonTime}`,
+          bookingId: supabaseResult.booking?.id,
+          customerName: metadata.customerName,
+          beach: firstBooking.beach,
+          lessonDate: lessonDate,
+          lessonTime: lessonTime,
+          data: {
+            url: '/staff-portal-a8f3e2b1c9d7e4f6',
+            confirmationNumber: confirmationNumber,
+            bookingId: supabaseResult.booking?.id
+          }
+        };
+
+        const pushResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/push/send-notification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(notificationPayload),
+        });
+
+        if (pushResponse.ok) {
+          const pushResult = await pushResponse.json();
+          console.log('✅ Push notification sent successfully:', pushResult.message);
+        } else {
+          const pushError = await pushResponse.text();
+          console.error('❌ Failed to send push notification:', pushError);
+        }
+      } catch (pushError) {
+        console.error('💥 Exception while sending push notification:', pushError);
+        // Don't throw error here - push notification failure shouldn't break webhook
+      }
     } else {
       console.error('❌ Failed to save booking to Supabase:');
       console.error('Error details:', supabaseResult.error);
