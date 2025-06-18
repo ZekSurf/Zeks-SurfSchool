@@ -227,7 +227,11 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
           }
         };
 
-        const pushResponse = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/push/send-notification`, {
+        const pushUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/push/send-notification`;
+        console.log('📱 Push notification URL:', pushUrl);
+        console.log('📱 Push notification payload:', JSON.stringify(notificationPayload, null, 2));
+
+        const pushResponse = await fetch(pushUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -235,12 +239,17 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
           body: JSON.stringify(notificationPayload),
         });
 
+        console.log('📱 Push response status:', pushResponse.status);
+        console.log('📱 Push response statusText:', pushResponse.statusText);
+
         if (pushResponse.ok) {
           const pushResult = await pushResponse.json();
           console.log('✅ Push notification sent successfully:', pushResult.message);
+          console.log('📊 Push notification stats:', pushResult);
         } else {
           const pushError = await pushResponse.text();
           console.error('❌ Failed to send push notification:', pushError);
+          console.error('❌ Push response headers:', Object.fromEntries(pushResponse.headers.entries()));
         }
       } catch (pushError) {
         console.error('💥 Exception while sending push notification:', pushError);

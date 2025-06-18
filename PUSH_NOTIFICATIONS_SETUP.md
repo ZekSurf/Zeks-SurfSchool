@@ -29,13 +29,16 @@ web-push generate-vapid-keys
 Add these to your `.env.local` file:
 
 ```bash
-# VAPID Keys for Push Notifications
-VAPID_PUBLIC_KEY=your_vapid_public_key_here
-VAPID_PRIVATE_KEY=your_vapid_private_key_here
-NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_vapid_public_key_here
+# VAPID Keys for Push Notifications (REQUIRED)
+VAPID_PUBLIC_KEY=BJihAZAi6EAAlBbRnB5LBrTTXmS3nbECYOVWHUVpCH1ZrkVDF96G63IesTuFQrh6WS5_7EMoLYx1XKetCnsQNQM
+VAPID_PRIVATE_KEY=vt2uSXtIXb8XyTht22phjMHz8eHDMIrvzQgIh8-1_BQ
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=BJihAZAi6EAAlBbRnB5LBrTTXmS3nbECYOVWHUVpCH1ZrkVDF96G63IesTuFQrh6WS5_7EMoLYx1XKetCnsQNQM
 
-# Base URL for sending notifications
-NEXTAUTH_URL=https://your-domain.com
+# Base URL for sending notifications (REQUIRED for production)
+NEXTAUTH_URL=https://your-vercel-domain.vercel.app
+
+# Admin password for PIN management (should already be set)
+NEXT_PUBLIC_ADMIN_DEBUG_PASSWORD=your_admin_password
 ```
 
 **Important:** 

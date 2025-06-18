@@ -101,6 +101,28 @@ export default function StaffPortal() {
     pushNotificationService.testNotification();
   };
 
+  const handleTestBookingNotification = async () => {
+    try {
+      const response = await fetch('/api/debug/test-push', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('✅ Test booking notification sent! Check console logs for details.');
+      } else {
+        alert(`❌ Test failed: ${result.error}\nCheck console logs for more details.`);
+      }
+    } catch (error) {
+      console.error('Test booking notification error:', error);
+      alert('❌ Test failed: Network error. Check console logs.');
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -423,12 +445,20 @@ export default function StaffPortal() {
                     )}
                     
                     {notificationStatus === 'enabled' && (
-                      <button
-                        onClick={handleTestNotification}
-                        className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                      >
-                        Test
-                      </button>
+                      <>
+                        <button
+                          onClick={handleTestNotification}
+                          className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        >
+                          Test
+                        </button>
+                        <button
+                          onClick={handleTestBookingNotification}
+                          className="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                        >
+                          Test Booking
+                        </button>
+                      </>
                     )}
                   </>
                 )}
