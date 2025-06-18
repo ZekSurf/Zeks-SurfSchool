@@ -19,7 +19,7 @@ class SupabaseStaffService {
       lessonsBooked: row.lessons_booked,
       isPrivate: row.is_private,
       timestamp: row.created_at,
-      status: row.status
+      status: (row.status as 'confirmed' | 'cancelled' | 'completed') || 'confirmed'
     };
   }
 
