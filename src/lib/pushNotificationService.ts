@@ -1,4 +1,6 @@
 // Push Notification Service for Staff Portal
+import { useState, useEffect } from 'react';
+
 interface PushSubscriptionData {
   endpoint: string;
   keys: {
@@ -22,16 +24,18 @@ class PushNotificationService {
   // Register service worker
   private async registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
     if (!('serviceWorker' in navigator)) {
-      console.warn('Service workers are not supported');
+      console.warn('❌ Service Worker not supported');
       return null;
     }
 
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js', {
-        scope: '/'
-      });
-      
+      const registration = await navigator.serviceWorker.register('/sw.js');
       console.log('✅ Service Worker registered:', registration);
+      
+      // Wait for service worker to be ready
+      await navigator.serviceWorker.ready;
+      console.log('✅ Service Worker ready');
+      
       return registration;
     } catch (error) {
       console.error('❌ Service Worker registration failed:', error);
@@ -41,23 +45,21 @@ class PushNotificationService {
 
   // Check if notifications are supported
   public isNotificationSupported(): boolean {
-    return (
-      typeof window !== 'undefined' &&
-      'Notification' in window &&
-      'serviceWorker' in navigator &&
-      'PushManager' in window
-    );
+    return typeof window !== 'undefined' && 
+           'Notification' in window && 
+           'serviceWorker' in navigator && 
+           'PushManager' in window;
   }
 
   // Request notification permission
   public async requestPermission(): Promise<NotificationPermission> {
-    if (!this.isNotificationSupported()) {
-      throw new Error('Notifications are not supported');
+    if (!this.isNotificationSupported()) return 'denied';
+    
+    if (Notification.permission === 'default') {
+      return await Notification.requestPermission();
     }
-
-    const permission = await Notification.requestPermission();
-    console.log('📱 Notification permission:', permission);
-    return permission;
+    
+    return Notification.permission;
   }
 
   // Subscribe to push notifications
@@ -70,11 +72,11 @@ class PushNotificationService {
     try {
       const permission = await this.requestPermission();
       if (permission !== 'granted') {
-        console.warn('📵 Notification permission denied');
+        console.warn('❌ Notification permission denied');
         return null;
       }
 
-      const registration = await this.registerServiceWorker();
+      const registration = await navigator.serviceWorker.getRegistration();
       if (!registration) {
         console.error('❌ Service Worker not available');
         return null;
@@ -215,10 +217,11 @@ class PushNotificationService {
     }
 
     // Show local test notification
-    new Notification('🏄‍♂️ Test Notification', {
-      body: 'Push notifications are working! You\'ll receive alerts for new bookings.',
+    new Notification('New Surf Lesson Booked!', {
+      body: 'John Test has booked a lesson at Doheny!',
       icon: '/zek-surf-icon.ico',
-      tag: 'test-notification'
+      tag: 'test-notification',
+      requireInteraction: true
     });
   }
 

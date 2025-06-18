@@ -21,18 +21,60 @@ export default function StaffPortal() {
   const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
-    // Check if already authenticated in session
+    checkPersistentLogin();
+  }, []);
+
+  const checkPersistentLogin = async () => {
+    // First check session storage for current session
     const authStatus = sessionStorage.getItem('staff_portal_auth');
     if (authStatus === 'authenticated') {
       setIsAuthenticated(true);
+      return;
     }
 
     // Check if user is locked out
     const lockoutTime = localStorage.getItem('staff_portal_lockout');
     if (lockoutTime && Date.now() - parseInt(lockoutTime) < 15 * 60 * 1000) { // 15 min lockout
       setIsLocked(true);
+      return;
     }
-  }, []);
+
+    // Check for persistent login via service worker
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      try {
+        const messageChannel = new MessageChannel();
+        
+        messageChannel.port1.onmessage = (event) => {
+          const { hasValidSession, sessionData } = event.data;
+          
+          if (hasValidSession && sessionData) {
+            console.log('🔐 Valid persistent session found, auto-login enabled');
+            // Automatically authenticate without requiring PIN entry
+            setIsAuthenticated(true);
+            sessionStorage.setItem('staff_portal_auth', 'authenticated');
+            
+            // Update last used time for this session
+            if (navigator.serviceWorker.controller) {
+              navigator.serviceWorker.controller.postMessage({
+                type: 'PERSIST_LOGIN',
+                pin: sessionData.pin,
+                updateOnly: true
+              });
+            }
+          } else {
+            console.log('🔐 No valid persistent session found');
+          }
+        };
+
+        navigator.serviceWorker.controller.postMessage(
+          { type: 'CHECK_SESSION' },
+          [messageChannel.port2]
+        );
+      } catch (error) {
+        console.error('Error checking persistent login:', error);
+      }
+    }
+  };
 
   // Auto-sync when authenticated and setup push notifications
   useEffect(() => {
@@ -42,8 +84,30 @@ export default function StaffPortal() {
       
       // Check push notification status
       checkNotificationStatus();
+      
+      // Listen for new booking notifications from service worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+        
+        return () => {
+          navigator.serviceWorker.removeEventListener('message', handleServiceWorkerMessage);
+        };
+      }
     }
   }, [isAuthenticated]);
+
+  const handleServiceWorkerMessage = (event: MessageEvent) => {
+    if (event.data && event.data.type === 'NEW_BOOKING_NOTIFICATION') {
+      console.log('📱 New booking notification received in staff portal:', event.data.booking);
+      
+      // Auto-refresh the calendar to show new booking
+      setRefreshKey(prev => prev + 1);
+      
+      // Show a toast notification or update UI
+      setSyncMessage(`✨ New booking: ${event.data.booking.customerName} at ${event.data.booking.beach}`);
+      setTimeout(() => setSyncMessage(''), 5000);
+    }
+  };
 
   const checkNotificationStatus = async () => {
     if (!pushNotificationService.isNotificationSupported()) {
@@ -139,6 +203,15 @@ export default function StaffPortal() {
         sessionStorage.setItem('staff_portal_auth', 'authenticated');
         setLoginAttempts(0);
         localStorage.removeItem('staff_portal_lockout');
+        
+        // Persist login for 24 hours using service worker
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({
+            type: 'PERSIST_LOGIN',
+            pin: pin
+          });
+        }
+        
         setPin('');
       } else {
         const newAttempts = loginAttempts + 1;

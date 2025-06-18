@@ -9,12 +9,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     // Simulate a booking notification
     const notificationPayload = {
-      title: '🏄‍♂️ Test Booking Notification!',
-      body: `John Test booked a lesson at San Onofre on ${new Date().toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric'
-      })} at 9:00 AM`,
+      title: 'New Surf Lesson Booked!',
+      body: 'John Test has booked a lesson at San Onofre!',
+      icon: '/zek-surf-icon.ico',
+      tag: 'test-notification',
       bookingId: 'test-booking-123',
       customerName: 'John Test',
       beach: 'San Onofre',

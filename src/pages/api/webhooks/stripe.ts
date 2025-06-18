@@ -213,8 +213,10 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
         const lessonTime = firstBooking.time.split(' - ')[0]; // Get start time only
         
         const notificationPayload = {
-          title: '🏄‍♂️ New Surf Lesson Booked!',
-          body: `${metadata.customerName} booked a lesson at ${firstBooking.beach} on ${lessonDate} at ${lessonTime}`,
+          title: 'New Surf Lesson Booked!',
+          body: `${metadata.customerName} has booked a lesson at ${firstBooking.beach}!`,
+          icon: '/zek-surf-icon.ico',
+          tag: 'new-booking',
           bookingId: supabaseResult.booking?.id,
           customerName: metadata.customerName,
           beach: firstBooking.beach,
