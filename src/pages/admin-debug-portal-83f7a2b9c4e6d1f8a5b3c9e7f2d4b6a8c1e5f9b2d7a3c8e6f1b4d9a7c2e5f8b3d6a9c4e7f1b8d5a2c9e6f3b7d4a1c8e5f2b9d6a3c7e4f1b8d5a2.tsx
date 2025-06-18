@@ -7,6 +7,7 @@ import { reviewService } from '@/lib/reviewService';
 import { supabaseStaffService } from '@/lib/supabaseStaffService';
 import { ReviewSubmission, ReviewStats } from '@/types/review';
 import { StaffPinConfig, CompletedBooking } from '@/types/booking';
+import { StaffPinRow } from '@/lib/supabase';
 
 interface DebugInfo {
   environment: string;
@@ -41,7 +42,18 @@ export default function AdminDebugPortal() {
   
   // Staff management state
   const [staffPinConfig, setStaffPinConfig] = useState<StaffPinConfig | null>(null);
+  const [allStaff, setAllStaff] = useState<StaffPinRow[]>([]);
   const [newStaffPin, setNewStaffPin] = useState('');
+  const [showCreateStaffForm, setShowCreateStaffForm] = useState(false);
+  const [newStaffData, setNewStaffData] = useState({
+    pin: '',
+    staffName: '',
+    role: 'surf_instructor' as 'surf_instructor' | 'admin',
+    phone: '',
+    email: '',
+    notes: ''
+  });
+  const [editingStaff, setEditingStaff] = useState<StaffPinRow | null>(null);
   const [bookingStats, setBookingStats] = useState({ total: 0, confirmed: 0, completed: 0, cancelled: 0 });
 
   // The admin password - use environment variable or fallback to default
@@ -325,47 +337,99 @@ export default function AdminDebugPortal() {
   // Staff management functions (server-side)
   const loadStaffConfig = async () => {
     try {
-      const config = await supabaseStaffService.getStaffPinConfig(ADMIN_PASSWORD);
-      setStaffPinConfig(config);
-      setLastAction('Staff configuration loaded');
+      const result = await supabaseStaffService.getAllStaffPins(ADMIN_PASSWORD);
+      if (result.success) {
+        setAllStaff(result.staff);
+        // Maintain backward compatibility - create legacy config from new data
+        const activeStaff = result.staff.find(s => s.is_active);
+        if (activeStaff) {
+          setStaffPinConfig({
+            pin: '',
+            createdAt: activeStaff.created_at,
+            lastUsed: activeStaff.last_used,
+            isActive: activeStaff.is_active
+          });
+        } else {
+          setStaffPinConfig(null);
+        }
+        setLastAction('Staff configuration loaded');
+      } else {
+        setLastAction(`Error loading staff: ${result.error}`);
+      }
     } catch (error) {
       setLastAction(`Error loading staff config: ${error}`);
     }
   };
 
-  const handleCreateStaffPin = async (e: React.FormEvent) => {
+  const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newStaffPin.trim()) return;
-
-    try {
-      const result = await supabaseStaffService.setStaffPin(newStaffPin, ADMIN_PASSWORD);
-      if (result.success) {
-        setNewStaffPin('');
-        await loadStaffConfig();
-        setLastAction(`Staff PIN created successfully`);
-      } else {
-        setLastAction(`Error creating staff PIN: ${result.error}`);
-      }
-    } catch (error) {
-      setLastAction(`Error creating staff PIN: ${error}`);
-    }
-  };
-
-  const handleDeactivateStaffPin = async () => {
-    if (!confirm('Are you sure you want to deactivate the staff PIN? This will prevent staff from accessing the portal.')) {
+    
+    // Validation
+    if (!newStaffData.pin.trim() || !newStaffData.staffName.trim()) {
+      setLastAction('PIN and staff name are required');
       return;
     }
 
     try {
-      const result = await supabaseStaffService.deactivateStaffPin(ADMIN_PASSWORD);
+      const result = await supabaseStaffService.createStaffPin({
+        pin: newStaffData.pin,
+        staffName: newStaffData.staffName,
+        role: newStaffData.role,
+        phone: newStaffData.phone || undefined,
+        email: newStaffData.email || undefined,
+        notes: newStaffData.notes || undefined
+      }, ADMIN_PASSWORD);
+      
       if (result.success) {
+        setNewStaffData({
+          pin: '',
+          staffName: '',
+          role: 'surf_instructor',
+          phone: '',
+          email: '',
+          notes: ''
+        });
+        setShowCreateStaffForm(false);
         await loadStaffConfig();
-        setLastAction('Staff PIN deactivated');
+        setLastAction(`Staff member created successfully`);
       } else {
-        setLastAction(`Error deactivating staff PIN: ${result.error}`);
+        setLastAction(`Error creating staff member: ${result.error}`);
       }
     } catch (error) {
-      setLastAction(`Error deactivating staff PIN: ${error}`);
+      setLastAction(`Error creating staff member: ${error}`);
+    }
+  };
+
+  const handleUpdateStaff = async (staffId: string, updates: Partial<StaffPinRow>) => {
+    try {
+      const result = await supabaseStaffService.updateStaffPin(staffId, updates, ADMIN_PASSWORD);
+      if (result.success) {
+        await loadStaffConfig();
+        setEditingStaff(null);
+        setLastAction('Staff member updated successfully');
+      } else {
+        setLastAction(`Error updating staff member: ${result.error}`);
+      }
+    } catch (error) {
+      setLastAction(`Error updating staff member: ${error}`);
+    }
+  };
+
+  const handleDeleteStaff = async (staffId: string, staffName: string) => {
+    if (!confirm(`Are you sure you want to delete ${staffName}? This will prevent them from accessing the staff portal.`)) {
+      return;
+    }
+
+    try {
+      const result = await supabaseStaffService.deleteStaffPin(staffId, ADMIN_PASSWORD);
+      if (result.success) {
+        await loadStaffConfig();
+        setLastAction('Staff member deleted');
+      } else {
+        setLastAction(`Error deleting staff member: ${result.error}`);
+      }
+    } catch (error) {
+      setLastAction(`Error deleting staff member: ${error}`);
     }
   };
 
@@ -483,6 +547,7 @@ export default function AdminDebugPortal() {
       <Head>
         <title>Admin Debug Portal - Zek's Surf School</title>
         <meta name="robots" content="noindex, nofollow" />
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>" />
       </Head>
 
       <div className="min-h-screen bg-gray-50">
@@ -933,7 +998,7 @@ export default function AdminDebugPortal() {
 
               {activeTab === 'staff' && (
                 <div className="space-y-6">
-                  {/* Staff PIN Management */}
+                  {/* Staff Management Header */}
                   <div className="bg-white p-6 rounded-lg border">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold">Staff Portal Management</h3>
@@ -945,137 +1010,433 @@ export default function AdminDebugPortal() {
                           🔄 Refresh
                         </button>
                         <button
-                          onClick={exportStaffData}
+                          onClick={() => setShowCreateStaffForm(!showCreateStaffForm)}
                           className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                        >
+                          ➕ Add Staff
+                        </button>
+                        <button
+                          onClick={exportStaffData}
+                          className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
                         >
                           📁 Export Bookings
                         </button>
                         <button
                           onClick={addDemoBooking}
-                          className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                          className="px-3 py-1 bg-orange-600 text-white rounded text-sm hover:bg-orange-700"
                         >
-                          ➕ Add Demo Booking
+                          🧪 Add Demo Booking
                         </button>
                       </div>
                     </div>
 
-                    {/* PIN Status */}
+                    {/* Staff Statistics */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                       <div className="bg-blue-50 p-4 rounded-lg">
                         <div className="text-lg font-bold text-blue-600">
-                          {staffPinConfig?.isActive ? '✅ Active' : '❌ Inactive'}
+                          {allStaff.length}
                         </div>
-                        <div className="text-sm text-gray-600">PIN Status</div>
+                        <div className="text-sm text-gray-600">Total Staff</div>
                       </div>
                       <div className="bg-green-50 p-4 rounded-lg">
                         <div className="text-lg font-bold text-green-600">
-                          {staffPinConfig?.createdAt ? new Date(staffPinConfig.createdAt).toLocaleDateString() : 'Never'}
+                          {allStaff.filter(s => s.is_active).length}
                         </div>
-                        <div className="text-sm text-gray-600">Created Date</div>
+                        <div className="text-sm text-gray-600">Active Staff</div>
                       </div>
                       <div className="bg-purple-50 p-4 rounded-lg">
                         <div className="text-lg font-bold text-purple-600">
-                          {staffPinConfig?.lastUsed ? new Date(staffPinConfig.lastUsed).toLocaleDateString() : 'Never'}
+                          {allStaff.filter(s => s.role === 'admin').length}
                         </div>
-                        <div className="text-sm text-gray-600">Last Used</div>
+                        <div className="text-sm text-gray-600">Admins</div>
                       </div>
                     </div>
 
-                    {/* Create New PIN */}
-                    <div className="border-t pt-4">
-                      <h4 className="font-semibold mb-3">Create/Update Staff PIN</h4>
-                      <form onSubmit={handleCreateStaffPin} className="flex items-center space-x-3">
-                        <input
-                          type="password"
-                          value={newStaffPin}
-                          onChange={(e) => setNewStaffPin(e.target.value)}
-                          placeholder="Enter new 4-6 digit PIN"
-                          className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono tracking-widest"
-                          minLength={4}
-                          maxLength={6}
-                          pattern="[0-9]{4,6}"
-                          title="PIN must be 4-6 digits"
-                          required
-                        />
-                        <button
-                          type="submit"
-                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          Set PIN
-                        </button>
-                        {staffPinConfig?.isActive && (
+                    <div className="mt-2 text-sm text-gray-600">
+                      Staff can access the booking calendar at:
+                      <br />
+                      <a 
+                        href="/staff-portal-a8f3e2b1c9d7e4f6"
+                        target="_blank"
+                        className="text-blue-600 hover:underline text-xs font-mono"
+                      >
+                        /staff-portal-a8f3e2b1c9d7e4f6
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Create Staff Form */}
+                  {showCreateStaffForm && (
+                    <div className="bg-white p-6 rounded-lg border border-green-200">
+                      <h4 className="font-semibold mb-4 flex items-center">
+                        ➕ Add New Staff Member
+                      </h4>
+                      <form onSubmit={handleCreateStaff} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              PIN (4-6 digits) *
+                            </label>
+                            <input
+                              type="password"
+                              value={newStaffData.pin}
+                              onChange={(e) => setNewStaffData(prev => ({ ...prev, pin: e.target.value }))}
+                              placeholder="Enter 4-6 digit PIN"
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono tracking-widest"
+                              minLength={4}
+                              maxLength={6}
+                              pattern="[0-9]{4,6}"
+                              title="PIN must be 4-6 digits"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Full Name *
+                            </label>
+                            <input
+                              type="text"
+                              value={newStaffData.staffName}
+                              onChange={(e) => setNewStaffData(prev => ({ ...prev, staffName: e.target.value }))}
+                              placeholder="Enter staff member's name"
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Role *
+                            </label>
+                            <select
+                              value={newStaffData.role}
+                              onChange={(e) => setNewStaffData(prev => ({ ...prev, role: e.target.value as 'surf_instructor' | 'admin' }))}
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                              required
+                            >
+                              <option value="surf_instructor">🏄‍♂️ Surf Instructor</option>
+                              <option value="admin">👨‍💼 Admin</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Phone Number
+                            </label>
+                            <input
+                              type="tel"
+                              value={newStaffData.phone}
+                              onChange={(e) => setNewStaffData(prev => ({ ...prev, phone: e.target.value }))}
+                              placeholder="(555) 123-4567"
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Email Address
+                            </label>
+                            <input
+                              type="email"
+                              value={newStaffData.email}
+                              onChange={(e) => setNewStaffData(prev => ({ ...prev, email: e.target.value }))}
+                              placeholder="staff@zeksurfschool.com"
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Notes
+                            </label>
+                            <input
+                              type="text"
+                              value={newStaffData.notes}
+                              onChange={(e) => setNewStaffData(prev => ({ ...prev, notes: e.target.value }))}
+                              placeholder="Additional notes..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3 pt-4">
+                          <button
+                            type="submit"
+                            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                          >
+                            Create Staff Member
+                          </button>
                           <button
                             type="button"
-                            onClick={handleDeactivateStaffPin}
-                            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                            onClick={() => setShowCreateStaffForm(false)}
+                            className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
                           >
-                            Deactivate PIN
+                            Cancel
                           </button>
-                        )}
+                        </div>
                       </form>
-                      <div className="mt-2 text-sm text-gray-600">
-                        The PIN allows staff to access the booking calendar at:
-                        <br />
-                        <a 
-                          href="/staff-portal-a8f3e2b1c9d7e4f6"
-                          target="_blank"
-                          className="text-blue-600 hover:underline text-xs font-mono"
-                        >
-                          /staff-portal-a8f3e2b1c9d7e4f6
-                        </a>
+                    </div>
+                  )}
+
+                  {/* Staff List */}
+                  <div className="bg-white p-6 rounded-lg border">
+                    <h4 className="font-semibold mb-4">Staff Members ({allStaff.length})</h4>
+                    
+                    {allStaff.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <div className="text-4xl mb-2">👥</div>
+                        <p>No staff members found</p>
+                        <p className="text-sm">Click "Add Staff" to create the first staff member</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {allStaff.map((staff) => (
+                          <div key={staff.id} className={`border rounded-lg p-4 ${staff.is_active ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-3 mb-2">
+                                  <div className="font-semibold text-lg">
+                                    {staff.staff_name}
+                                  </div>
+                                  <div className={`px-2 py-1 rounded text-xs font-medium ${
+                                    staff.role === 'admin' 
+                                      ? 'bg-purple-100 text-purple-700' 
+                                      : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {staff.role === 'admin' ? '👨‍💼 Admin' : '🏄‍♂️ Surf Instructor'}
+                                  </div>
+                                  <div className={`px-2 py-1 rounded text-xs font-medium ${
+                                    staff.is_active 
+                                      ? 'bg-green-100 text-green-700' 
+                                      : 'bg-red-100 text-red-700'
+                                  }`}>
+                                    {staff.is_active ? '✅ Active' : '❌ Inactive'}
+                                  </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
+                                  <div>
+                                    <span className="font-medium">PIN:</span> {staff.pin}
+                                  </div>
+                                  {staff.phone && (
+                                    <div>
+                                      <span className="font-medium">Phone:</span> {staff.phone}
+                                    </div>
+                                  )}
+                                  {staff.email && (
+                                    <div>
+                                      <span className="font-medium">Email:</span> {staff.email}
+                                    </div>
+                                  )}
+                                  <div>
+                                    <span className="font-medium">Created:</span> {new Date(staff.created_at).toLocaleDateString()}
+                                  </div>
+                                  {staff.last_used && (
+                                    <div>
+                                      <span className="font-medium">Last Used:</span> {new Date(staff.last_used).toLocaleDateString()}
+                                    </div>
+                                  )}
+                                  {staff.notes && (
+                                    <div className="md:col-span-3">
+                                      <span className="font-medium">Notes:</span> {staff.notes}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center space-x-2 ml-4">
+                                <button
+                                  onClick={() => handleUpdateStaff(staff.id, { is_active: !staff.is_active })}
+                                  className={`px-3 py-1 rounded text-sm ${
+                                    staff.is_active 
+                                      ? 'bg-yellow-600 text-white hover:bg-yellow-700' 
+                                      : 'bg-green-600 text-white hover:bg-green-700'
+                                  }`}
+                                >
+                                  {staff.is_active ? '⏸️ Disable' : '▶️ Enable'}
+                                </button>
+                                <button
+                                  onClick={() => setEditingStaff(staff)}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                                >
+                                  ✏️ Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteStaff(staff.id, staff.staff_name)}
+                                  className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                                >
+                                  🗑️ Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Edit Staff Modal */}
+                  {editingStaff && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                      <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+                        <h4 className="font-semibold mb-4">
+                          Edit {editingStaff.staff_name}
+                        </h4>
+                        <form onSubmit={(e) => {
+                          e.preventDefault();
+                          const formData = new FormData(e.currentTarget);
+                                                     const phoneValue = formData.get('phone') as string;
+                           const emailValue = formData.get('email') as string;
+                           const notesValue = formData.get('notes') as string;
+                           
+                           const updates = {
+                             pin: formData.get('pin') as string,
+                             staff_name: formData.get('staffName') as string,
+                             role: formData.get('role') as 'surf_instructor' | 'admin',
+                             phone: phoneValue?.trim() || undefined,
+                             email: emailValue?.trim() || undefined,
+                             notes: notesValue?.trim() || undefined,
+                           };
+                          handleUpdateStaff(editingStaff.id, updates);
+                        }} className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              PIN (4-6 digits)
+                            </label>
+                            <input
+                              name="pin"
+                              type="password"
+                              defaultValue={editingStaff.pin}
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono tracking-widest"
+                              minLength={4}
+                              maxLength={6}
+                              pattern="[0-9]{4,6}"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Full Name
+                            </label>
+                            <input
+                              name="staffName"
+                              type="text"
+                              defaultValue={editingStaff.staff_name}
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Role
+                            </label>
+                            <select
+                              name="role"
+                              defaultValue={editingStaff.role}
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              required
+                            >
+                              <option value="surf_instructor">🏄‍♂️ Surf Instructor</option>
+                              <option value="admin">👨‍💼 Admin</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Phone Number
+                            </label>
+                            <input
+                              name="phone"
+                              type="tel"
+                              defaultValue={editingStaff.phone || ''}
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Email Address
+                            </label>
+                            <input
+                              name="email"
+                              type="email"
+                              defaultValue={editingStaff.email || ''}
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Notes
+                            </label>
+                            <input
+                              name="notes"
+                              type="text"
+                              defaultValue={editingStaff.notes || ''}
+                              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          <div className="flex items-center space-x-3 pt-4">
+                            <button
+                              type="submit"
+                              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                              Update Staff
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingStaff(null)}
+                              className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
                       </div>
                     </div>
+                  )}
 
-                    {/* Booking Statistics */}
-                    <div className="border-t pt-4 mt-6">
-                      <h4 className="font-semibold mb-3">Booking Statistics</h4>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="bg-gray-50 p-3 rounded">
-                          <div className="text-xl font-bold text-gray-700">
-                            {bookingStats.total}
-                          </div>
-                          <div className="text-sm text-gray-600">Total Bookings</div>
+                  {/* Booking Statistics */}
+                  <div className="bg-white p-6 rounded-lg border">
+                    <h4 className="font-semibold mb-3">Booking Statistics</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-gray-50 p-3 rounded">
+                        <div className="text-xl font-bold text-gray-700">
+                          {bookingStats.total}
                         </div>
-                        <div className="bg-blue-50 p-3 rounded">
-                          <div className="text-xl font-bold text-blue-700">
-                            {bookingStats.confirmed}
-                          </div>
-                          <div className="text-sm text-gray-600">Confirmed</div>
+                        <div className="text-sm text-gray-600">Total Bookings</div>
+                      </div>
+                      <div className="bg-blue-50 p-3 rounded">
+                        <div className="text-xl font-bold text-blue-700">
+                          {bookingStats.confirmed}
                         </div>
-                        <div className="bg-green-50 p-3 rounded">
-                          <div className="text-xl font-bold text-green-700">
-                            {bookingStats.completed}
-                          </div>
-                          <div className="text-sm text-gray-600">Completed</div>
+                        <div className="text-sm text-gray-600">Confirmed</div>
+                      </div>
+                      <div className="bg-green-50 p-3 rounded">
+                        <div className="text-xl font-bold text-green-700">
+                          {bookingStats.completed}
                         </div>
-                        <div className="bg-red-50 p-3 rounded">
-                          <div className="text-xl font-bold text-red-700">
-                            {bookingStats.cancelled}
-                          </div>
-                          <div className="text-sm text-gray-600">Cancelled</div>
+                        <div className="text-sm text-gray-600">Completed</div>
+                      </div>
+                      <div className="bg-red-50 p-3 rounded">
+                        <div className="text-xl font-bold text-red-700">
+                          {bookingStats.cancelled}
                         </div>
+                        <div className="text-sm text-gray-600">Cancelled</div>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Clear Data Warning */}
-                    <div className="border-t pt-4 mt-6">
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <h4 className="font-semibold text-red-800 mb-2">⚠️ Danger Zone</h4>
-                        <p className="text-sm text-red-700 mb-3">
-                          Clear all booking data. This action cannot be undone.
-                        </p>
-                        <button
-                          onClick={() => {
-                            if (confirm('Are you sure you want to clear ALL booking data? This cannot be undone!')) {
-                              // staffService.clearAllBookings(); // TODO: Update to use Supabase
-                              setLastAction('All booking data cleared');
-                            }
-                          }}
-                          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                        >
-                          Clear All Bookings
-                        </button>
-                      </div>
+                  {/* Clear Data Warning */}
+                  <div className="bg-white p-6 rounded-lg border">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-red-800 mb-2">⚠️ Danger Zone</h4>
+                      <p className="text-sm text-red-700 mb-3">
+                        Clear all booking data. This action cannot be undone.
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (confirm('Are you sure you want to clear ALL booking data? This cannot be undone!')) {
+                            supabaseStaffService.clearAllBookings();
+                            setLastAction('All booking data cleared');
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                      >
+                        Clear All Bookings
+                      </button>
                     </div>
                   </div>
                 </div>

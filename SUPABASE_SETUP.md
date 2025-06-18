@@ -70,18 +70,28 @@ CREATE TRIGGER update_bookings_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
--- Create staff pins table for server-side PIN management
+-- Create staff pins table for server-side PIN management with enhanced fields
 CREATE TABLE staff_pins (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   pin text NOT NULL,
+  staff_name text NOT NULL,
+  role text NOT NULL CHECK (role IN ('surf_instructor', 'admin')),
+  phone text,
+  email text,
+  notes text,
   is_active boolean NOT NULL DEFAULT true,
   created_at timestamptz DEFAULT now() NOT NULL,
   last_used timestamptz,
-  updated_at timestamptz DEFAULT now() NOT NULL
+  updated_at timestamptz DEFAULT now() NOT NULL,
+  
+  -- Constraints
+  CONSTRAINT unique_active_pin UNIQUE (pin) DEFERRABLE INITIALLY DEFERRED
 );
 
--- Create index for active pins
+-- Create indexes for staff pins
 CREATE INDEX idx_staff_pins_active ON staff_pins(is_active) WHERE is_active = true;
+CREATE INDEX idx_staff_pins_role ON staff_pins(role);
+CREATE INDEX idx_staff_pins_pin ON staff_pins(pin) WHERE is_active = true;
 
 -- Create updated_at trigger for staff_pins
 CREATE TRIGGER update_staff_pins_updated_at 
@@ -192,7 +202,39 @@ Test these features:
 - ✅ Sync button loads bookings from database
 - ✅ New bookings appear automatically after payment
 
-## 8. Data Migration (if needed)
+## 8. Add Your First Staff Member
+
+To get started with the staff management system:
+
+1. Open the **Admin Debug Portal**
+2. Go to the "👥 Staff Portal" tab
+3. Click "➕ Add Staff"
+4. Fill in the form:
+   - **PIN**: 1234 (4-6 digits)
+   - **Full Name**: John Doe
+   - **Role**: Surf Instructor
+   - **Phone**: (555) 123-4567
+   - **Email**: john@zeksurfschool.com
+   - **Notes**: Head instructor, certified lifeguard
+5. Click "Create Staff Member"
+
+Your staff can now access the portal using their PIN at:
+`/staff-portal-a8f3e2b1c9d7e4f6`
+
+## 9. Staff Management Features
+
+The enhanced staff portal now supports:
+
+- ✅ **Multiple Staff Members**: Create unlimited staff accounts
+- ✅ **Role-Based Access**: Surf Instructors and Admins
+- ✅ **Contact Information**: Phone, email, and notes for each staff member
+- ✅ **Active/Inactive Status**: Enable/disable staff access without deletion
+- ✅ **PIN Management**: Unique 4-6 digit PINs for each staff member
+- ✅ **Last Used Tracking**: Monitor when staff last accessed the portal
+- ✅ **Quick Actions**: Edit, enable/disable, or delete staff members
+- ✅ **Staff Statistics**: Overview of total, active, and admin staff
+
+## 10. Data Migration (if needed)
 
 If you have existing booking data from the file-based system:
 

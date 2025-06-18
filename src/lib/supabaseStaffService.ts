@@ -1,4 +1,4 @@
-import { supabase, BookingRow } from './supabase';
+import { supabase, BookingRow, StaffPinRow } from './supabase';
 import { CompletedBooking, StaffPinConfig } from '@/types/booking';
 
 class SupabaseStaffService {
@@ -201,14 +201,54 @@ class SupabaseStaffService {
   }
 
   // PIN management (server-side via API)
-  public async setStaffPin(pin: string, adminKey: string): Promise<{ success: boolean; error?: string }> {
+  public async createStaffPin(staffData: {
+    pin: string;
+    staffName: string;
+    role: 'surf_instructor' | 'admin';
+    phone?: string;
+    email?: string;
+    notes?: string;
+  }, adminKey: string): Promise<{ success: boolean; error?: string; staffId?: string }> {
     try {
       const response = await fetch('/api/staff/pin-management', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ pin, adminKey }),
+        body: JSON.stringify({ ...staffData, adminKey }),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Staff PIN created via server');
+      } else {
+        console.error('❌ Failed to create PIN:', result.error);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error creating staff PIN:', error);
+      return { success: false, error: 'Network error' };
+    }
+  }
+
+  public async updateStaffPin(staffId: string, updates: {
+    pin?: string;
+    staffName?: string;
+    role?: 'surf_instructor' | 'admin';
+    phone?: string;
+    email?: string;
+    notes?: string;
+    isActive?: boolean;
+  }, adminKey: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch('/api/staff/pin-management', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ staffId, updates, adminKey }),
       });
 
       const result = await response.json();
@@ -221,7 +261,7 @@ class SupabaseStaffService {
       
       return result;
     } catch (error) {
-      console.error('Error setting staff PIN:', error);
+      console.error('Error updating staff PIN:', error);
       return { success: false, error: 'Network error' };
     }
   }
@@ -251,7 +291,7 @@ class SupabaseStaffService {
     }
   }
 
-  public async getStaffPinConfig(adminKey: string): Promise<StaffPinConfig | null> {
+  public async getAllStaffPins(adminKey: string): Promise<{ success: boolean; staff: StaffPinRow[]; error?: string }> {
     try {
       const response = await fetch(`/api/staff/pin-management?adminKey=${encodeURIComponent(adminKey)}`, {
         method: 'GET',
@@ -259,13 +299,38 @@ class SupabaseStaffService {
 
       const result = await response.json();
       
-      if (result.success && result.pinConfig) {
+      if (result.success && result.staff) {
         return {
-          pin: '', // Don't expose actual PIN
-          createdAt: result.pinConfig.createdAt,
-          lastUsed: result.pinConfig.lastUsed,
-          isActive: result.pinConfig.isActive
+          success: true,
+          staff: result.staff.map((staff: any) => ({
+            ...staff,
+            pin: '****' // Don't expose actual PINs
+          }))
         };
+      }
+      
+      return { success: false, staff: [], error: result.error || 'Failed to fetch staff' };
+    } catch (error) {
+      console.error('Error getting all staff PINs:', error);
+      return { success: false, staff: [], error: 'Network error' };
+    }
+  }
+
+  public async getStaffPinConfig(adminKey: string): Promise<StaffPinConfig | null> {
+    try {
+      const result = await this.getAllStaffPins(adminKey);
+      
+      if (result.success && result.staff.length > 0) {
+        // Return legacy format for backward compatibility
+        const firstActive = result.staff.find(s => s.is_active);
+        if (firstActive) {
+          return {
+            pin: '', // Don't expose actual PIN
+            createdAt: firstActive.created_at,
+            lastUsed: firstActive.last_used,
+            isActive: firstActive.is_active
+          };
+        }
       }
       
       return null;
@@ -275,27 +340,27 @@ class SupabaseStaffService {
     }
   }
 
-  public async deactivateStaffPin(adminKey: string): Promise<{ success: boolean; error?: string }> {
+  public async deleteStaffPin(staffId: string, adminKey: string): Promise<{ success: boolean; error?: string }> {
     try {
       const response = await fetch('/api/staff/pin-management', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ adminKey }),
+        body: JSON.stringify({ staffId, adminKey }),
       });
 
       const result = await response.json();
       
       if (result.success) {
-        console.log('✅ Staff PIN deactivated via server');
+        console.log('✅ Staff PIN deleted via server');
       } else {
-        console.error('❌ Failed to deactivate PIN:', result.error);
+        console.error('❌ Failed to delete PIN:', result.error);
       }
       
       return result;
     } catch (error) {
-      console.error('Error deactivating staff PIN:', error);
+      console.error('Error deleting staff PIN:', error);
       return { success: false, error: 'Network error' };
     }
   }

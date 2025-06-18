@@ -29,6 +29,11 @@ export interface BookingRow {
 export interface StaffPinRow {
   id: string;
   pin: string;
+  staff_name: string;
+  role: 'surf_instructor' | 'admin';
+  phone?: string;
+  email?: string;
+  notes?: string;
   is_active: boolean;
   created_at: string;
   last_used?: string;
