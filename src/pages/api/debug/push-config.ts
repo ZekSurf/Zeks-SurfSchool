@@ -2,6 +2,14 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs';
 import path from 'path';
 
+// Define the subscription interface
+interface PushSubscription {
+  endpoint?: string;
+  userAgent?: string;
+  subscriptionTime?: string;
+  [key: string]: any; // Allow for additional properties
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
@@ -17,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Check if subscriptions file exists
     const subscriptionsFile = path.join(process.cwd(), 'data', 'push-subscriptions.json');
     let subscriptionCount = 0;
-    let subscriptions = [];
+    let subscriptions: PushSubscription[] = [];
     
     try {
       if (fs.existsSync(subscriptionsFile)) {
@@ -47,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         count: subscriptionCount,
         hasSubscriptionsFile: fs.existsSync(subscriptionsFile),
         filePath: subscriptionsFile,
-        recentSubscriptions: subscriptions.slice(-3).map(sub => ({
+        recentSubscriptions: subscriptions.slice(-3).map((sub: PushSubscription) => ({
           endpoint: sub.endpoint?.substring(0, 50) + '...',
           userAgent: sub.userAgent?.substring(0, 50) + '...',
           subscriptionTime: sub.subscriptionTime
