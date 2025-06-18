@@ -30,4 +30,30 @@ export interface BookingResponse {
 export interface BeachCoordinates {
   lat: number;
   lng: number;
+}
+
+// Staff management types
+export interface CompletedBooking {
+  id: string;
+  confirmationNumber: string;
+  paymentIntentId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  beach: string;
+  date: string; // YYYY-MM-DD format
+  startTime: string; // ISO datetime string
+  endTime: string; // ISO datetime string
+  price: number;
+  lessonsBooked: number;
+  isPrivate: boolean;
+  timestamp: string; // ISO datetime when booking was completed
+  status: 'confirmed' | 'cancelled' | 'completed';
+}
+
+export interface StaffPinConfig {
+  pin: string;
+  createdAt: string;
+  lastUsed?: string;
+  isActive: boolean;
 } 

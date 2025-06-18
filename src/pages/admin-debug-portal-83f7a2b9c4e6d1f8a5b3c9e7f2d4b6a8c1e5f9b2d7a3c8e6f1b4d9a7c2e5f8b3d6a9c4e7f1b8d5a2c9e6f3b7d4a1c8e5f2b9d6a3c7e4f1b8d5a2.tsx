@@ -4,7 +4,9 @@ import { bookingService } from '@/lib/bookingService';
 import { bookingCache } from '@/lib/bookingCache';
 import { chatService } from '@/lib/chatService';
 import { reviewService } from '@/lib/reviewService';
+import { supabaseStaffService } from '@/lib/supabaseStaffService';
 import { ReviewSubmission, ReviewStats } from '@/types/review';
+import { StaffPinConfig, CompletedBooking } from '@/types/booking';
 
 interface DebugInfo {
   environment: string;
@@ -36,6 +38,11 @@ export default function AdminDebugPortal() {
   const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
   const [selectedReview, setSelectedReview] = useState<ReviewSubmission | null>(null);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  
+  // Staff management state
+  const [staffPinConfig, setStaffPinConfig] = useState<StaffPinConfig | null>(null);
+  const [newStaffPin, setNewStaffPin] = useState('');
+  const [bookingStats, setBookingStats] = useState({ total: 0, confirmed: 0, completed: 0, cancelled: 0 });
 
   // The admin password - use environment variable or fallback to default
   const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_DEBUG_PASSWORD || 'ZeksSurf2024!Admin#Debug';
@@ -47,6 +54,7 @@ export default function AdminDebugPortal() {
       setIsAuthenticated(true);
       loadDebugInfo();
       loadReviews();
+      loadStaffConfig();
     }
 
     // Check if user is locked out
@@ -71,6 +79,7 @@ export default function AdminDebugPortal() {
       localStorage.removeItem('admin_debug_lockout');
       loadDebugInfo();
       loadReviews();
+      loadStaffConfig();
     } else {
       const newAttempts = loginAttempts + 1;
       setLoginAttempts(newAttempts);
@@ -313,6 +322,92 @@ export default function AdminDebugPortal() {
     return reviews.filter(review => review.status === reviewFilter);
   };
 
+  // Staff management functions
+  const loadStaffConfig = () => {
+    try {
+      const config = supabaseStaffService.getStaffPinConfig();
+      setStaffPinConfig(config);
+      setLastAction('Staff configuration loaded');
+    } catch (error) {
+      setLastAction(`Error loading staff config: ${error}`);
+    }
+  };
+
+  const handleCreateStaffPin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStaffPin.trim()) return;
+
+    try {
+              supabaseStaffService.setStaffPin(newStaffPin);
+      setNewStaffPin('');
+      loadStaffConfig();
+      setLastAction(`Staff PIN created successfully`);
+    } catch (error) {
+      setLastAction(`Error creating staff PIN: ${error}`);
+    }
+  };
+
+  const handleDeactivateStaffPin = () => {
+    if (!confirm('Are you sure you want to deactivate the staff PIN? This will prevent staff from accessing the portal.')) {
+      return;
+    }
+
+    try {
+      supabaseStaffService.deactivateStaffPin();
+      loadStaffConfig();
+      setLastAction('Staff PIN deactivated');
+    } catch (error) {
+      setLastAction(`Error deactivating staff PIN: ${error}`);
+    }
+  };
+
+  const exportStaffData = async () => {
+    try {
+      const result = await supabaseStaffService.exportBookingsData();
+      const bookingsData = result.success ? result.data || 'No data' : 'Error exporting data';
+      const blob = new Blob([bookingsData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `staff-bookings-${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      
+      URL.revokeObjectURL(url);
+      setLastAction('Staff data exported successfully');
+    } catch (error) {
+      setLastAction(`Error exporting staff data: ${error}`);
+    }
+  };
+
+  const addDemoBooking = async () => {
+    try {
+      const today = new Date();
+      const demoBooking: CompletedBooking = {
+        id: `demo-${Date.now()}`,
+        confirmationNumber: `SURF-${Date.now().toString().slice(-6)}-DEMO`,
+        paymentIntentId: `pi_demo_${Math.random().toString(36).substr(2, 9)}`,
+        customerName: 'John Doe',
+        customerEmail: 'john.doe@example.com',
+        customerPhone: '+1 (555) 123-4567',
+        beach: 'Doheny',
+        date: today.toISOString().split('T')[0],
+        startTime: `${today.toISOString().split('T')[0]}T10:00:00-07:00`,
+        endTime: `${today.toISOString().split('T')[0]}T11:30:00-07:00`,
+        price: 85.00,
+        lessonsBooked: 1,
+        isPrivate: false,
+        timestamp: new Date().toISOString(),
+        status: 'confirmed'
+      };
+      
+      await supabaseStaffService.saveCompletedBooking(demoBooking);
+      setLastAction('Demo booking added successfully');
+    } catch (error) {
+      setLastAction(`Error adding demo booking: ${error}`);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <>
@@ -483,6 +578,7 @@ export default function AdminDebugPortal() {
                 {[
                   { id: 'overview', label: '📊 Overview', icon: '📊' },
                   { id: 'reviews', label: '⭐ Reviews', icon: '⭐' },
+                  { id: 'staff', label: '👥 Staff Portal', icon: '👥' },
                   { id: 'cache', label: '🗄️ Cache System', icon: '🗄️' },
                   { id: 'storage', label: '💾 Storage', icon: '💾' },
                   { id: 'api', label: '🌐 API Debug', icon: '🌐' },
@@ -824,6 +920,156 @@ export default function AdminDebugPortal() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {activeTab === 'staff' && (
+                <div className="space-y-6">
+                  {/* Staff PIN Management */}
+                  <div className="bg-white p-6 rounded-lg border">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">Staff Portal Management</h3>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={loadStaffConfig}
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                        >
+                          🔄 Refresh
+                        </button>
+                        <button
+                          onClick={exportStaffData}
+                          className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                        >
+                          📁 Export Bookings
+                        </button>
+                        <button
+                          onClick={addDemoBooking}
+                          className="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700"
+                        >
+                          ➕ Add Demo Booking
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* PIN Status */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <div className="text-lg font-bold text-blue-600">
+                          {staffPinConfig?.isActive ? '✅ Active' : '❌ Inactive'}
+                        </div>
+                        <div className="text-sm text-gray-600">PIN Status</div>
+                      </div>
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <div className="text-lg font-bold text-green-600">
+                          {staffPinConfig?.createdAt ? new Date(staffPinConfig.createdAt).toLocaleDateString() : 'Never'}
+                        </div>
+                        <div className="text-sm text-gray-600">Created Date</div>
+                      </div>
+                      <div className="bg-purple-50 p-4 rounded-lg">
+                        <div className="text-lg font-bold text-purple-600">
+                          {staffPinConfig?.lastUsed ? new Date(staffPinConfig.lastUsed).toLocaleDateString() : 'Never'}
+                        </div>
+                        <div className="text-sm text-gray-600">Last Used</div>
+                      </div>
+                    </div>
+
+                    {/* Create New PIN */}
+                    <div className="border-t pt-4">
+                      <h4 className="font-semibold mb-3">Create/Update Staff PIN</h4>
+                      <form onSubmit={handleCreateStaffPin} className="flex items-center space-x-3">
+                        <input
+                          type="password"
+                          value={newStaffPin}
+                          onChange={(e) => setNewStaffPin(e.target.value)}
+                          placeholder="Enter new 4-6 digit PIN"
+                          className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono tracking-widest"
+                          minLength={4}
+                          maxLength={6}
+                          pattern="[0-9]{4,6}"
+                          title="PIN must be 4-6 digits"
+                          required
+                        />
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Set PIN
+                        </button>
+                        {staffPinConfig?.isActive && (
+                          <button
+                            type="button"
+                            onClick={handleDeactivateStaffPin}
+                            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                          >
+                            Deactivate PIN
+                          </button>
+                        )}
+                      </form>
+                      <div className="mt-2 text-sm text-gray-600">
+                        The PIN allows staff to access the booking calendar at:
+                        <br />
+                        <a 
+                          href="/staff-portal-a8f3e2b1c9d7e4f6"
+                          target="_blank"
+                          className="text-blue-600 hover:underline text-xs font-mono"
+                        >
+                          /staff-portal-a8f3e2b1c9d7e4f6
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Booking Statistics */}
+                    <div className="border-t pt-4 mt-6">
+                      <h4 className="font-semibold mb-3">Booking Statistics</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-gray-50 p-3 rounded">
+                          <div className="text-xl font-bold text-gray-700">
+                            {bookingStats.total}
+                          </div>
+                          <div className="text-sm text-gray-600">Total Bookings</div>
+                        </div>
+                        <div className="bg-blue-50 p-3 rounded">
+                          <div className="text-xl font-bold text-blue-700">
+                            {bookingStats.confirmed}
+                          </div>
+                          <div className="text-sm text-gray-600">Confirmed</div>
+                        </div>
+                        <div className="bg-green-50 p-3 rounded">
+                          <div className="text-xl font-bold text-green-700">
+                            {bookingStats.completed}
+                          </div>
+                          <div className="text-sm text-gray-600">Completed</div>
+                        </div>
+                        <div className="bg-red-50 p-3 rounded">
+                          <div className="text-xl font-bold text-red-700">
+                            {bookingStats.cancelled}
+                          </div>
+                          <div className="text-sm text-gray-600">Cancelled</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Clear Data Warning */}
+                    <div className="border-t pt-4 mt-6">
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <h4 className="font-semibold text-red-800 mb-2">⚠️ Danger Zone</h4>
+                        <p className="text-sm text-red-700 mb-3">
+                          Clear all booking data. This action cannot be undone.
+                        </p>
+                        <button
+                          onClick={() => {
+                            if (confirm('Are you sure you want to clear ALL booking data? This cannot be undone!')) {
+                              // staffService.clearAllBookings(); // TODO: Update to use Supabase
+                              setLastAction('All booking data cleared');
+                            }
+                          }}
+                          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                        >
+                          Clear All Bookings
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 

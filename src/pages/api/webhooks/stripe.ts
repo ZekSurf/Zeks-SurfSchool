@@ -2,6 +2,8 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import { buffer } from 'micro';
 import { bookingService } from '@/lib/bookingService';
+import { supabaseStaffService } from '@/lib/supabaseStaffService';
+import { CompletedBooking } from '@/types/booking';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-05-28.basil',
@@ -186,6 +188,26 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   }
 
   console.log('Successfully sent booking data to n8n');
+  
+  // Save completed booking to Supabase for staff portal
+  try {
+    console.log('🔄 Attempting to save booking to Supabase...');
+    console.log('📦 Booking data for Supabase:', JSON.stringify(bookingData, null, 2));
+    
+    const supabaseResult = await supabaseStaffService.saveBookingFromStripeData(bookingData);
+    
+    if (supabaseResult.success) {
+      console.log('✅ Booking saved to Supabase successfully!');
+      console.log('📋 Confirmation number:', supabaseResult.booking?.confirmationNumber);
+    } else {
+      console.error('❌ Failed to save booking to Supabase:');
+      console.error('Error details:', supabaseResult.error);
+    }
+  } catch (error) {
+    console.error('💥 Exception while saving booking to Supabase:');
+    console.error('Exception details:', error);
+    // Don't throw error here - staff system failure shouldn't break webhook
+  }
   
   // Clear booking cache for this date and beach to ensure fresh availability data
   try {
