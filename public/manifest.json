@@ -25,21 +25,21 @@
   ],
   "icons": [
     {
-      "src": "/zek-surf-icon.ico",
-      "sizes": "48x48 32x32 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "/zek-surf.png",
+      "src": "/staff-icon-180.svg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/zek-surf.png",
+      "src": "/staff-icon-180.svg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/staff-icon-180.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml"
     }
   ],
   "categories": ["business", "productivity"],

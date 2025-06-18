@@ -204,7 +204,7 @@ export default function StaffPortal() {
         setLoginAttempts(0);
         localStorage.removeItem('staff_portal_lockout');
         
-        // Persist login for 24 hours using service worker
+        // Enable persistent login for 24 hours via service worker
         if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
           navigator.serviceWorker.controller.postMessage({
             type: 'PERSIST_LOGIN',
@@ -212,7 +212,6 @@ export default function StaffPortal() {
           });
         }
         
-        setPin('');
       } else {
         const newAttempts = loginAttempts + 1;
         setLoginAttempts(newAttempts);
@@ -227,8 +226,8 @@ export default function StaffPortal() {
         setPin('');
       }
     } catch (error) {
-      console.error('Error verifying PIN:', error);
-      alert('Error verifying PIN. Please try again.');
+      console.error('Login error:', error);
+      alert('Login failed. Please try again.');
     }
   };
 
@@ -240,8 +239,7 @@ export default function StaffPortal() {
 
   const navigateWeek = (direction: 'prev' | 'next') => {
     const newWeek = new Date(selectedWeek);
-    const daysToAdd = direction === 'next' ? 7 : -7;
-    newWeek.setDate(selectedWeek.getDate() + daysToAdd);
+    newWeek.setDate(newWeek.getDate() + (direction === 'next' ? 7 : -7));
     setSelectedWeek(newWeek);
   };
 
@@ -255,32 +253,27 @@ export default function StaffPortal() {
   };
 
   const handleStatusUpdate = (bookingId: string, status: CompletedBooking['status']) => {
-    // Force refresh the calendar
+    // Refresh the calendar to show updated status
     setRefreshKey(prev => prev + 1);
-    setIsModalOpen(false);
-    setSelectedBooking(null);
   };
 
   const handleSyncBookings = async () => {
     setIsSyncing(true);
     setSyncMessage('');
-    
+
     try {
       const result = await supabaseStaffService.getAllBookings();
-      
       if (result.success) {
-        setSyncMessage(`✅ Loaded ${result.bookings.length} bookings from database`);
-        // Force refresh the calendar to show bookings
         setRefreshKey(prev => prev + 1);
+        setSyncMessage(`✅ Synced successfully! Found ${result.bookings.length} total bookings.`);
       } else {
         setSyncMessage(`❌ Sync failed: ${result.error}`);
       }
     } catch (error) {
+      console.error('Sync error:', error);
       setSyncMessage('❌ Sync failed: Network error');
     } finally {
       setIsSyncing(false);
-      
-      // Clear message after 5 seconds
       setTimeout(() => setSyncMessage(''), 5000);
     }
   };
@@ -288,16 +281,13 @@ export default function StaffPortal() {
   const getWeekRange = () => {
     const startOfWeek = new Date(selectedWeek);
     const day = startOfWeek.getDay();
-    const diff = startOfWeek.getDate() - day;
+    const diff = startOfWeek.getDate() - day; // Adjust to start on Sunday
     startOfWeek.setDate(diff);
-
+    
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-    return {
-      start: startOfWeek,
-      end: endOfWeek
-    };
+    
+    return { start: startOfWeek, end: endOfWeek };
   };
 
   const weekRange = getWeekRange();
@@ -309,6 +299,23 @@ export default function StaffPortal() {
           <title>Staff Portal - Zek's Surf School</title>
           <meta name="robots" content="noindex, nofollow" />
           <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>" />
+          
+          {/* PWA Icons for iOS */}
+          <meta name="application-name" content="Surf Staff" />
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+          <meta name="apple-mobile-web-app-title" content="Surf Staff" />
+          <meta name="theme-color" content="#2563eb" />
+          
+          {/* iOS App Icons */}
+          <link rel="apple-touch-icon" href="/staff-icon-180.svg" />
+          <link rel="apple-touch-icon" sizes="180x180" href="/staff-icon-180.svg" />
+          <link rel="apple-touch-icon" sizes="152x152" href="/staff-icon-180.svg" />
+          <link rel="apple-touch-icon" sizes="120x120" href="/staff-icon-180.svg" />
+          <link rel="apple-touch-icon" sizes="76x76" href="/staff-icon-180.svg" />
+          
+          {/* Manifest for PWA */}
+          <link rel="manifest" href="/manifest.json" />
         </Head>
 
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 flex items-center justify-center p-4">
@@ -383,6 +390,23 @@ export default function StaffPortal() {
           <title>Staff Portal - Weekly Schedule - Zek's Surf School</title>
           <meta name="robots" content="noindex, nofollow" />
           <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>" />
+          
+          {/* PWA Icons for iOS */}
+          <meta name="application-name" content="Surf Staff" />
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+          <meta name="apple-mobile-web-app-title" content="Surf Staff" />
+          <meta name="theme-color" content="#2563eb" />
+          
+          {/* iOS App Icons */}
+          <link rel="apple-touch-icon" href="/staff-icon-180.svg" />
+          <link rel="apple-touch-icon" sizes="180x180" href="/staff-icon-180.svg" />
+          <link rel="apple-touch-icon" sizes="152x152" href="/staff-icon-180.svg" />
+          <link rel="apple-touch-icon" sizes="120x120" href="/staff-icon-180.svg" />
+          <link rel="apple-touch-icon" sizes="76x76" href="/staff-icon-180.svg" />
+          
+          {/* Manifest for PWA */}
+          <link rel="manifest" href="/manifest.json" />
         </Head>
 
       <div className="min-h-screen bg-gray-50">
@@ -503,92 +527,61 @@ export default function StaffPortal() {
               <div className="flex gap-2">
                 {notificationStatus !== 'unsupported' && (
                   <>
-                    {notificationStatus === 'disabled' || !isSubscribed ? (
+                    {notificationStatus === 'disabled' ? (
                       <button
                         onClick={handleEnableNotifications}
-                        className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm"
+                        className="px-3 py-1 bg-green-600 text-white rounded text-xs md:text-sm hover:bg-green-700 transition-colors"
                       >
-                        Enable Alerts
+                        Enable
                       </button>
                     ) : (
                       <button
                         onClick={handleDisableNotifications}
-                        className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
+                        className="px-3 py-1 bg-red-600 text-white rounded text-xs md:text-sm hover:bg-red-700 transition-colors"
                       >
                         Disable
                       </button>
                     )}
                     
-                    {notificationStatus === 'enabled' && (
-                      <>
-                        <button
-                          onClick={handleTestNotification}
-                          className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                        >
-                          Test
-                        </button>
-                        <button
-                          onClick={handleTestBookingNotification}
-                          className="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm"
-                        >
-                          Test Booking
-                        </button>
-                      </>
-                    )}
+                    <button
+                      onClick={handleTestNotification}
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-xs md:text-sm hover:bg-blue-700 transition-colors"
+                    >
+                      Test
+                    </button>
+                    
+                    <button
+                      onClick={handleTestBookingNotification}
+                      className="px-3 py-1 bg-purple-600 text-white rounded text-xs md:text-sm hover:bg-purple-700 transition-colors"
+                    >
+                      Test Booking
+                    </button>
                   </>
-                )}
-                
-                {pushNotificationService.isIOSDevice() && notificationStatus === 'disabled' && (
-                  <div className="hidden sm:block text-xs text-gray-500 max-w-xs">
-                    On iOS: Add this page to your home screen first, then enable notifications
-                  </div>
                 )}
               </div>
             </div>
-            
-            {/* iOS Instructions */}
-            {pushNotificationService.isIOSDevice() && notificationStatus === 'disabled' && (
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg sm:hidden">
-                <h4 className="font-medium text-blue-800 text-sm mb-2">📱 iOS Setup Instructions:</h4>
-                <ol className="text-blue-700 text-xs space-y-1">
-                  {pushNotificationService.getIOSInstructions().map((instruction, index) => (
-                    <li key={index}>{instruction}</li>
-                  ))}
-                </ol>
-              </div>
-            )}
           </div>
 
-          {/* Calendar */}
+          {/* Weekly Calendar */}
           <WeeklyCalendar
-            key={`${selectedWeek.toISOString()}-${refreshKey}`}
+            key={refreshKey}
             selectedWeek={selectedWeek}
             onBookingClick={handleBookingClick}
           />
-
-          {/* Instructions */}
-          <div className="mt-6 md:mt-8 bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
-            <h3 className="text-base md:text-lg font-semibold text-blue-800 mb-2">How to use the Staff Portal</h3>
-            <ul className="text-blue-700 space-y-1 text-sm">
-              <li>• <span className="hidden md:inline">Click</span><span className="md:hidden">Tap</span> on any booking to view detailed information</li>
-              <li>• Use the status update buttons to mark lessons as completed or cancelled</li>
-              <li>• Navigate between weeks using the <span className="hidden md:inline">Previous/Next Week</span><span className="md:hidden">Prev/Next</span> buttons</li>
-              <li>• <span className="hidden md:inline">Click</span><span className="md:hidden">Tap</span> "Current<span className="hidden md:inline"> Week</span>" to quickly return to this week's schedule</li>
-              <li>• Contact information is <span className="hidden md:inline">clickable</span><span className="md:hidden">tappable</span> for quick communication</li>
-            </ul>
-          </div>
         </div>
 
         {/* Booking Details Modal */}
-        <BookingDetailsModal
-          booking={selectedBooking}
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedBooking(null);
-          }}
-          onStatusUpdate={handleStatusUpdate}
-        />
+        {selectedBooking && (
+          <BookingDetailsModal
+            booking={selectedBooking}
+            isOpen={isModalOpen}
+            onClose={() => {
+              setIsModalOpen(false);
+              setSelectedBooking(null);
+            }}
+            onStatusUpdate={handleStatusUpdate}
+          />
+        )}
       </div>
     </>
   );
