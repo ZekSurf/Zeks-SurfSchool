@@ -1,13 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Database types for TypeScript
 export interface BookingRow {
@@ -24,7 +20,17 @@ export interface BookingRow {
   price: number;
   lessons_booked: number;
   is_private: boolean;
-  status: 'confirmed' | 'completed' | 'cancelled';
+  status: string;
   created_at: string;
+  updated_at: string;
+}
+
+// Staff PIN configuration interface
+export interface StaffPinRow {
+  id: string;
+  pin: string;
+  is_active: boolean;
+  created_at: string;
+  last_used?: string;
   updated_at: string;
 } 

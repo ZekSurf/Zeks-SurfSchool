@@ -101,7 +101,7 @@ export default function StaffPortal() {
     pushNotificationService.testNotification();
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (isLocked) {
@@ -109,26 +109,31 @@ export default function StaffPortal() {
       return;
     }
 
-    const isValidPin = supabaseStaffService.verifyStaffPin(pin);
-    
-    if (isValidPin) {
-      setIsAuthenticated(true);
-      sessionStorage.setItem('staff_portal_auth', 'authenticated');
-      setLoginAttempts(0);
-      localStorage.removeItem('staff_portal_lockout');
-      setPin('');
-    } else {
-      const newAttempts = loginAttempts + 1;
-      setLoginAttempts(newAttempts);
+    try {
+      const isValidPin = await supabaseStaffService.verifyStaffPin(pin);
       
-      if (newAttempts >= 3) {
-        setIsLocked(true);
-        localStorage.setItem('staff_portal_lockout', Date.now().toString());
-        alert('Too many failed attempts. Access locked for 15 minutes.');
+      if (isValidPin) {
+        setIsAuthenticated(true);
+        sessionStorage.setItem('staff_portal_auth', 'authenticated');
+        setLoginAttempts(0);
+        localStorage.removeItem('staff_portal_lockout');
+        setPin('');
       } else {
-        alert(`Invalid PIN. ${3 - newAttempts} attempts remaining.`);
+        const newAttempts = loginAttempts + 1;
+        setLoginAttempts(newAttempts);
+        
+        if (newAttempts >= 3) {
+          setIsLocked(true);
+          localStorage.setItem('staff_portal_lockout', Date.now().toString());
+          alert('Too many failed attempts. Access locked for 15 minutes.');
+        } else {
+          alert(`Invalid PIN. ${3 - newAttempts} attempts remaining.`);
+        }
+        setPin('');
       }
-      setPin('');
+    } catch (error) {
+      console.error('Error verifying PIN:', error);
+      alert('Error verifying PIN. Please try again.');
     }
   };
 

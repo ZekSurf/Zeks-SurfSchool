@@ -322,10 +322,10 @@ export default function AdminDebugPortal() {
     return reviews.filter(review => review.status === reviewFilter);
   };
 
-  // Staff management functions
-  const loadStaffConfig = () => {
+  // Staff management functions (server-side)
+  const loadStaffConfig = async () => {
     try {
-      const config = supabaseStaffService.getStaffPinConfig();
+      const config = await supabaseStaffService.getStaffPinConfig(ADMIN_PASSWORD);
       setStaffPinConfig(config);
       setLastAction('Staff configuration loaded');
     } catch (error) {
@@ -333,29 +333,37 @@ export default function AdminDebugPortal() {
     }
   };
 
-  const handleCreateStaffPin = (e: React.FormEvent) => {
+  const handleCreateStaffPin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStaffPin.trim()) return;
 
     try {
-              supabaseStaffService.setStaffPin(newStaffPin);
-      setNewStaffPin('');
-      loadStaffConfig();
-      setLastAction(`Staff PIN created successfully`);
+      const result = await supabaseStaffService.setStaffPin(newStaffPin, ADMIN_PASSWORD);
+      if (result.success) {
+        setNewStaffPin('');
+        await loadStaffConfig();
+        setLastAction(`Staff PIN created successfully`);
+      } else {
+        setLastAction(`Error creating staff PIN: ${result.error}`);
+      }
     } catch (error) {
       setLastAction(`Error creating staff PIN: ${error}`);
     }
   };
 
-  const handleDeactivateStaffPin = () => {
+  const handleDeactivateStaffPin = async () => {
     if (!confirm('Are you sure you want to deactivate the staff PIN? This will prevent staff from accessing the portal.')) {
       return;
     }
 
     try {
-      supabaseStaffService.deactivateStaffPin();
-      loadStaffConfig();
-      setLastAction('Staff PIN deactivated');
+      const result = await supabaseStaffService.deactivateStaffPin(ADMIN_PASSWORD);
+      if (result.success) {
+        await loadStaffConfig();
+        setLastAction('Staff PIN deactivated');
+      } else {
+        setLastAction(`Error deactivating staff PIN: ${result.error}`);
+      }
     } catch (error) {
       setLastAction(`Error deactivating staff PIN: ${error}`);
     }

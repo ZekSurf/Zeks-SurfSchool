@@ -69,6 +69,25 @@ CREATE TRIGGER update_bookings_updated_at
     BEFORE UPDATE ON bookings 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Create staff pins table for server-side PIN management
+CREATE TABLE staff_pins (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  pin text NOT NULL,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz DEFAULT now() NOT NULL,
+  last_used timestamptz,
+  updated_at timestamptz DEFAULT now() NOT NULL
+);
+
+-- Create index for active pins
+CREATE INDEX idx_staff_pins_active ON staff_pins(is_active) WHERE is_active = true;
+
+-- Create updated_at trigger for staff_pins
+CREATE TRIGGER update_staff_pins_updated_at 
+    BEFORE UPDATE ON staff_pins 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
 ```
 
 ## 4. Configure Row Level Security (RLS)
@@ -81,6 +100,13 @@ ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 
 -- Allow public access for now (you can restrict this later)
 CREATE POLICY "Allow full access to bookings" ON bookings
+FOR ALL USING (true);
+
+-- Enable RLS on staff_pins table
+ALTER TABLE staff_pins ENABLE ROW LEVEL SECURITY;
+
+-- Allow public access to staff pins (access controlled via API)
+CREATE POLICY "Allow full access to staff_pins" ON staff_pins
 FOR ALL USING (true);
 ```
 

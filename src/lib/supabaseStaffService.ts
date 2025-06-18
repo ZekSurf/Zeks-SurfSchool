@@ -200,78 +200,103 @@ class SupabaseStaffService {
     }
   }
 
-  // PIN management (still uses localStorage for now)
-  public setStaffPin(pin: string): void {
+  // PIN management (server-side via API)
+  public async setStaffPin(pin: string, adminKey: string): Promise<{ success: boolean; error?: string }> {
     try {
-      if (typeof window === 'undefined') return;
+      const response = await fetch('/api/staff/pin-management', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pin, adminKey }),
+      });
+
+      const result = await response.json();
       
-      const pinConfig: StaffPinConfig = {
-        pin: pin,
-        createdAt: new Date().toISOString(),
-        isActive: true
-      };
+      if (result.success) {
+        console.log('✅ Staff PIN updated via server');
+      } else {
+        console.error('❌ Failed to update PIN:', result.error);
+      }
       
-      localStorage.setItem('staff_pin_config', JSON.stringify(pinConfig));
-      console.log('✅ Staff PIN updated');
+      return result;
     } catch (error) {
       console.error('Error setting staff PIN:', error);
+      return { success: false, error: 'Network error' };
     }
   }
 
-  public verifyStaffPin(pin: string): boolean {
+  public async verifyStaffPin(pin: string): Promise<boolean> {
     try {
-      if (typeof window === 'undefined') return false;
+      const response = await fetch('/api/staff/pin-management', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pin }),
+      });
+
+      const result = await response.json();
       
-      const pinData = localStorage.getItem('staff_pin_config');
-      if (!pinData) return false;
-      
-      const pinConfig = JSON.parse(pinData) as StaffPinConfig;
-      
-      if (!pinConfig.isActive) return false;
-      
-      const isValid = pinConfig.pin === pin;
-      
-      if (isValid) {
-        // Update last used timestamp
-        pinConfig.lastUsed = new Date().toISOString();
-        localStorage.setItem('staff_pin_config', JSON.stringify(pinConfig));
+      if (result.success && result.valid) {
+        console.log('✅ PIN verified successfully');
+        return true;
+      } else {
+        console.log('❌ PIN verification failed:', result.error || 'Invalid PIN');
+        return false;
       }
-      
-      return isValid;
     } catch (error) {
       console.error('Error verifying staff PIN:', error);
       return false;
     }
   }
 
-  public getStaffPinConfig(): StaffPinConfig | null {
+  public async getStaffPinConfig(adminKey: string): Promise<StaffPinConfig | null> {
     try {
-      if (typeof window === 'undefined') return null;
+      const response = await fetch(`/api/staff/pin-management?adminKey=${encodeURIComponent(adminKey)}`, {
+        method: 'GET',
+      });
+
+      const result = await response.json();
       
-      const pinData = localStorage.getItem('staff_pin_config');
-      if (!pinData) return null;
+      if (result.success && result.pinConfig) {
+        return {
+          pin: '', // Don't expose actual PIN
+          createdAt: result.pinConfig.createdAt,
+          lastUsed: result.pinConfig.lastUsed,
+          isActive: result.pinConfig.isActive
+        };
+      }
       
-      return JSON.parse(pinData) as StaffPinConfig;
+      return null;
     } catch (error) {
       console.error('Error getting staff PIN config:', error);
       return null;
     }
   }
 
-  public deactivateStaffPin(): void {
+  public async deactivateStaffPin(adminKey: string): Promise<{ success: boolean; error?: string }> {
     try {
-      if (typeof window === 'undefined') return;
+      const response = await fetch('/api/staff/pin-management', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ adminKey }),
+      });
+
+      const result = await response.json();
       
-      const pinData = localStorage.getItem('staff_pin_config');
-      if (!pinData) return;
+      if (result.success) {
+        console.log('✅ Staff PIN deactivated via server');
+      } else {
+        console.error('❌ Failed to deactivate PIN:', result.error);
+      }
       
-      const pinConfig = JSON.parse(pinData) as StaffPinConfig;
-      pinConfig.isActive = false;
-      
-      localStorage.setItem('staff_pin_config', JSON.stringify(pinConfig));
-      console.log('✅ Staff PIN deactivated');
+      return result;
     } catch (error) {
       console.error('Error deactivating staff PIN:', error);
+      return { success: false, error: 'Network error' };
     }
   }
 
