@@ -1,5 +1,7 @@
 # 🔧 Push Notification Troubleshooting Guide
 
+This guide helps diagnose and fix push notification issues in the surf school application.
+
 ## 🐛 Issue: Test Notifications Work, But Real Bookings Don't Send Notifications
 
 ### Most Likely Causes:
@@ -159,3 +161,179 @@ If notifications still don't work after these steps:
 - [ ] iOS device added to home screen and opened from home screen
 
 Once all items are checked, push notifications should work for real bookings! 🎉 
+
+## Quick Status Check
+
+Visit `/api/debug/push-config` on your deployed site to get a comprehensive status report including:
+- VAPID key configuration
+- Database connection status
+- Active subscription count
+- Recent subscription details
+
+## Common Issues & Solutions
+
+### 1. "No subscriptions found" Error
+
+**Symptoms**: Test notifications fail with "No subscriptions found"
+
+**Causes & Solutions**:
+- **User hasn't enabled notifications**: Ask user to click "Enable Push Notifications" in staff portal
+- **Database connection issue**: Check Supabase environment variables in Vercel
+- **Table doesn't exist**: Run the push_subscriptions table creation SQL (see SUPABASE_SETUP.md)
+
+**Debug Steps**:
+```bash
+# Check if push_subscriptions table exists in Supabase
+SELECT COUNT(*) FROM push_subscriptions;
+
+# Check environment variables
+echo $NEXT_PUBLIC_SUPABASE_URL
+echo $NEXT_PUBLIC_SUPABASE_ANON_KEY
+```
+
+### 2. VAPID Keys Missing Error
+
+**Symptoms**: Push notifications fail with "VAPID keys missing"
+
+**Solution**: Add VAPID environment variables to Vercel:
+```bash
+VAPID_PUBLIC_KEY=your_vapid_public_key
+VAPID_PRIVATE_KEY=your_vapid_private_key
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_vapid_public_key (same as VAPID_PUBLIC_KEY)
+```
+
+**Generate New VAPID Keys**:
+```bash
+npx web-push generate-vapid-keys
+```
+
+### 3. Real Bookings Don't Trigger Notifications
+
+**Symptoms**: Test notifications work, but actual payments don't send notifications
+
+**Debug Steps**:
+1. Check Vercel logs for Stripe webhook errors
+2. Verify `NEXTAUTH_URL` is set to your custom domain (not .vercel.app)
+3. Test webhook endpoint: `/api/debug/test-push`
+
+**Common Fixes**:
+- Set `NEXTAUTH_URL=https://zeksurfschool.com` (your custom domain)
+- Ensure Stripe webhook is configured to send to your custom domain
+- Check that all VAPID environment variables are properly set in Vercel production
+
+### 4. Subscription Registration Fails
+
+**Symptoms**: "Enable Push Notifications" button doesn't work
+
+**iOS Safari Requirements**:
+- User must "Add to Home Screen" to install as PWA
+- Push notifications only work in PWA mode on iOS
+- User must interact with the page before requesting permission
+
+**Debug Steps**:
+1. Check browser console for errors
+2. Verify service worker is registered: `navigator.serviceWorker.ready`
+3. Test subscription endpoint: `/api/push/subscribe`
+
+### 5. Database Migration Issues
+
+**If migrating from file-based storage** (version before Supabase migration):
+
+**Symptoms**: Old subscriptions lost, ENOENT file errors in Vercel logs
+
+**Solution**: The system has been migrated to Supabase database storage:
+1. Run the push_subscriptions table creation SQL (see SUPABASE_SETUP.md)
+2. Users need to re-enable push notifications to register with new system
+3. Old file-based subscriptions will not be migrated automatically
+
+## Environment Variables Checklist
+
+Ensure these are set in Vercel production environment:
+
+### Required for Push Notifications:
+- ✅ `VAPID_PUBLIC_KEY`
+- ✅ `VAPID_PRIVATE_KEY` 
+- ✅ `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- ✅ `NEXTAUTH_URL` (set to your custom domain)
+
+### Required for Database:
+- ✅ `NEXT_PUBLIC_SUPABASE_URL`
+- ✅ `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+## Testing Workflow
+
+### 1. Test Database Connection
+```bash
+curl https://zeksurfschool.com/api/test-supabase
+```
+
+### 2. Test Push Config
+```bash
+curl https://zeksurfschool.com/api/debug/push-config
+```
+
+### 3. Test Notification Sending
+```bash
+curl -X POST https://zeksurfschool.com/api/debug/test-push \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Test","body":"Test notification"}'
+```
+
+### 4. Test Full Booking Flow
+1. Make a real test booking with Stripe
+2. Check Vercel logs for webhook execution
+3. Verify notification appears on registered devices
+
+## iOS Push Notification Setup
+
+### For Users:
+1. Visit `zeksurfschool.com` in Safari
+2. Tap Share → "Add to Home Screen"
+3. Open the PWA from home screen
+4. Navigate to staff portal
+5. Click "Enable Push Notifications"
+6. Allow when prompted
+
+### For Developers:
+- Push notifications only work on HTTPS domains
+- Local development requires `localhost` or use ngrok for testing
+- iOS requires PWA installation for push notifications
+- Service worker must be served from root domain
+
+## Advanced Debugging
+
+### Check Service Worker Status:
+```javascript
+// In browser console
+navigator.serviceWorker.getRegistrations().then(registrations => {
+  console.log('Service Workers:', registrations);
+});
+```
+
+### Check Push Subscription:
+```javascript
+// In browser console
+navigator.serviceWorker.ready.then(registration => {
+  return registration.pushManager.getSubscription();
+}).then(subscription => {
+  console.log('Push Subscription:', subscription);
+});
+```
+
+### Monitor Database Subscriptions:
+```sql
+-- In Supabase SQL editor
+SELECT 
+  COUNT(*) as total_subscriptions,
+  MAX(created_at) as latest_subscription,
+  COUNT(CASE WHEN created_at > NOW() - INTERVAL '24 hours' THEN 1 END) as recent_subscriptions
+FROM push_subscriptions;
+```
+
+## Support Contacts
+
+If issues persist:
+1. Check Vercel deployment logs
+2. Review Supabase database logs
+3. Test with multiple devices/browsers
+4. Verify all environment variables are properly set in production 

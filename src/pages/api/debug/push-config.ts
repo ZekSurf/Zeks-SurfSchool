@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import fs from 'fs';
-import path from 'path';
+import { supabase } from '../../../lib/supabase';
 
 // Define the subscription interface
 interface PushSubscription {
@@ -22,19 +21,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
     const nextAuthUrl = process.env.NEXTAUTH_URL;
     
-    // Check if subscriptions file exists
-    const subscriptionsFile = path.join(process.cwd(), 'data', 'push-subscriptions.json');
+    // Load subscriptions from Supabase
     let subscriptionCount = 0;
     let subscriptions: PushSubscription[] = [];
     
     try {
-      if (fs.existsSync(subscriptionsFile)) {
-        const data = fs.readFileSync(subscriptionsFile, 'utf8');
-        subscriptions = JSON.parse(data);
-        subscriptionCount = subscriptions.length;
+      const { data: subscriptionRows, error, count } = await supabase
+        .from('push_subscriptions')
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (error) {
+        console.error('Error loading subscriptions from Supabase:', error);
+      } else {
+        subscriptionCount = count || 0;
+        subscriptions = (subscriptionRows || []).map(row => ({
+          endpoint: row.endpoint,
+          userAgent: row.user_agent,
+          subscriptionTime: row.created_at
+        }));
       }
     } catch (error) {
-      console.error('Error reading subscriptions file:', error);
+      console.error('Error reading subscriptions from Supabase:', error);
     }
 
     // Return debug info
@@ -53,9 +62,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       subscriptions: {
         count: subscriptionCount,
-        hasSubscriptionsFile: fs.existsSync(subscriptionsFile),
-        filePath: subscriptionsFile,
-        recentSubscriptions: subscriptions.slice(-3).map((sub: PushSubscription) => ({
+        hasSupabaseConnection: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        recentSubscriptions: subscriptions.map((sub: PushSubscription) => ({
           endpoint: sub.endpoint?.substring(0, 50) + '...',
           userAgent: sub.userAgent?.substring(0, 50) + '...',
           subscriptionTime: sub.subscriptionTime

@@ -1,6 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import fs from 'fs';
-import path from 'path';
+import { supabase } from '../../../lib/supabase';
 
 interface PushSubscriptionData {
   endpoint: string;
@@ -11,40 +10,6 @@ interface PushSubscriptionData {
   userAgent?: string;
   subscriptionTime?: string;
 }
-
-const SUBSCRIPTIONS_FILE = path.join(process.cwd(), 'data', 'push-subscriptions.json');
-
-// Ensure data directory exists
-const ensureDataDirectory = () => {
-  const dataDir = path.dirname(SUBSCRIPTIONS_FILE);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-};
-
-// Load existing subscriptions
-const loadSubscriptions = (): PushSubscriptionData[] => {
-  try {
-    if (fs.existsSync(SUBSCRIPTIONS_FILE)) {
-      const data = fs.readFileSync(SUBSCRIPTIONS_FILE, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error loading subscriptions:', error);
-  }
-  return [];
-};
-
-// Save subscriptions
-const saveSubscriptions = (subscriptions: PushSubscriptionData[]) => {
-  try {
-    ensureDataDirectory();
-    fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify(subscriptions, null, 2));
-    console.log('✅ Subscriptions saved:', subscriptions.length);
-  } catch (error) {
-    console.error('❌ Error saving subscriptions:', error);
-  }
-};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -63,32 +28,71 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Load existing subscriptions
-    const subscriptions = loadSubscriptions();
+    // Check if subscription already exists
+    const { data: existingSubscription } = await supabase
+      .from('push_subscriptions')
+      .select('id')
+      .eq('endpoint', subscription.endpoint)
+      .single();
 
-    // Remove any existing subscription with the same endpoint
-    const filteredSubscriptions = subscriptions.filter(
-      sub => sub.endpoint !== subscription.endpoint
-    );
+    if (existingSubscription) {
+      // Update existing subscription
+      const { error: updateError } = await supabase
+        .from('push_subscriptions')
+        .update({
+          p256dh_key: subscription.keys.p256dh,
+          auth_key: subscription.keys.auth,
+          user_agent: subscription.userAgent,
+          updated_at: new Date().toISOString()
+        })
+        .eq('endpoint', subscription.endpoint);
 
-    // Add the new subscription
-    filteredSubscriptions.push({
-      ...subscription,
-      subscriptionTime: new Date().toISOString()
-    });
+      if (updateError) {
+        console.error('❌ Error updating push subscription:', updateError);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Failed to update subscription' 
+        });
+      }
 
-    // Save updated subscriptions
-    saveSubscriptions(filteredSubscriptions);
+      console.log('✅ Push subscription updated:', {
+        endpoint: subscription.endpoint.substring(0, 50) + '...',
+        userAgent: subscription.userAgent?.substring(0, 100) + '...'
+      });
+    } else {
+      // Insert new subscription
+      const { error: insertError } = await supabase
+        .from('push_subscriptions')
+        .insert({
+          endpoint: subscription.endpoint,
+          p256dh_key: subscription.keys.p256dh,
+          auth_key: subscription.keys.auth,
+          user_agent: subscription.userAgent
+        });
 
-    console.log('✅ New push subscription registered:', {
-      endpoint: subscription.endpoint.substring(0, 50) + '...',
-      userAgent: subscription.userAgent?.substring(0, 100) + '...'
-    });
+      if (insertError) {
+        console.error('❌ Error saving push subscription:', insertError);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Failed to save subscription' 
+        });
+      }
+
+      console.log('✅ New push subscription registered:', {
+        endpoint: subscription.endpoint.substring(0, 50) + '...',
+        userAgent: subscription.userAgent?.substring(0, 100) + '...'
+      });
+    }
+
+    // Get total subscription count
+    const { count } = await supabase
+      .from('push_subscriptions')
+      .select('*', { count: 'exact', head: true });
 
     return res.status(200).json({ 
       success: true, 
       message: 'Subscription saved successfully',
-      total: filteredSubscriptions.length
+      total: count || 0
     });
 
   } catch (error) {

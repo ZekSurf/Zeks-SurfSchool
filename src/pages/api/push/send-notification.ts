@@ -1,7 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import webpush from 'web-push';
-import fs from 'fs';
-import path from 'path';
+import { supabase } from '../../../lib/supabase';
 
 interface PushSubscriptionData {
   endpoint: string;
@@ -23,8 +22,6 @@ interface NotificationPayload {
   lessonTime?: string;
 }
 
-const SUBSCRIPTIONS_FILE = path.join(process.cwd(), 'data', 'push-subscriptions.json');
-
 // Configure web-push with VAPID keys
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
@@ -36,25 +33,50 @@ if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   console.warn('⚠️ VAPID keys not configured - push notifications will not work');
 }
 
-// Load existing subscriptions
-const loadSubscriptions = (): PushSubscriptionData[] => {
+// Load subscriptions from Supabase
+const loadSubscriptions = async (): Promise<PushSubscriptionData[]> => {
   try {
-    if (fs.existsSync(SUBSCRIPTIONS_FILE)) {
-      const data = fs.readFileSync(SUBSCRIPTIONS_FILE, 'utf8');
-      return JSON.parse(data);
+    const { data: subscriptionRows, error } = await supabase
+      .from('push_subscriptions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading subscriptions from Supabase:', error);
+      return [];
     }
+
+    // Convert Supabase format to expected format
+    return (subscriptionRows || []).map(row => ({
+      endpoint: row.endpoint,
+      keys: {
+        p256dh: row.p256dh_key,
+        auth: row.auth_key
+      },
+      userAgent: row.user_agent,
+      subscriptionTime: row.created_at
+    }));
   } catch (error) {
     console.error('Error loading subscriptions:', error);
+    return [];
   }
-  return [];
 };
 
-// Save subscriptions (to remove invalid ones)
-const saveSubscriptions = (subscriptions: PushSubscriptionData[]) => {
+// Remove invalid subscription from Supabase
+const removeInvalidSubscription = async (endpoint: string) => {
   try {
-    fs.writeFileSync(SUBSCRIPTIONS_FILE, JSON.stringify(subscriptions, null, 2));
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('endpoint', endpoint);
+
+    if (error) {
+      console.error('Error removing invalid subscription:', error);
+    } else {
+      console.log('🧹 Removed invalid subscription:', endpoint.substring(0, 50) + '...');
+    }
   } catch (error) {
-    console.error('❌ Error saving subscriptions:', error);
+    console.error('Error removing invalid subscription:', error);
   }
 };
 
@@ -77,6 +99,7 @@ const sendToSubscription = async (
     
     // If subscription is invalid (410 status), mark for removal
     if (error?.statusCode === 410 || error?.statusCode === 404) {
+      await removeInvalidSubscription(subscription.endpoint);
       return { success: false, error: 'invalid_subscription' };
     }
     
@@ -109,8 +132,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Load subscriptions
-    const subscriptions = loadSubscriptions();
+    // Load subscriptions from Supabase
+    const subscriptions = await loadSubscriptions();
     
     if (subscriptions.length === 0) {
       return res.status(200).json({ 
@@ -131,31 +154,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Process results
     let sent = 0;
     let failed = 0;
-    const validSubscriptions: PushSubscriptionData[] = [];
 
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         if (result.value.success) {
           sent++;
-          validSubscriptions.push(subscriptions[index]);
         } else {
           failed++;
-          // Only keep subscription if it's not marked as invalid
-          if (result.value.error !== 'invalid_subscription') {
-            validSubscriptions.push(subscriptions[index]);
-          }
         }
       } else {
         failed++;
-        validSubscriptions.push(subscriptions[index]);
       }
     });
-
-    // Update subscriptions file if we removed any invalid ones
-    if (validSubscriptions.length !== subscriptions.length) {
-      saveSubscriptions(validSubscriptions);
-      console.log(`🧹 Removed ${subscriptions.length - validSubscriptions.length} invalid subscriptions`);
-    }
 
     console.log(`✅ Notification results: ${sent} sent, ${failed} failed`);
 

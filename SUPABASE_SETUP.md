@@ -88,6 +88,27 @@ CREATE TRIGGER update_staff_pins_updated_at
     BEFORE UPDATE ON staff_pins 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Create push_subscriptions table
+CREATE TABLE push_subscriptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  endpoint text UNIQUE NOT NULL,
+  p256dh_key text NOT NULL,
+  auth_key text NOT NULL,
+  user_agent text,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Create indexes for push subscriptions
+CREATE INDEX idx_push_subscriptions_endpoint ON push_subscriptions(endpoint);
+CREATE INDEX idx_push_subscriptions_created_at ON push_subscriptions(created_at);
+
+-- Create updated_at trigger for push_subscriptions
+CREATE TRIGGER update_push_subscriptions_updated_at 
+    BEFORE UPDATE ON push_subscriptions 
+    FOR EACH ROW 
+    EXECUTE FUNCTION update_updated_at_column();
 ```
 
 ## 4. Configure Row Level Security (RLS)
@@ -108,6 +129,37 @@ ALTER TABLE staff_pins ENABLE ROW LEVEL SECURITY;
 -- Allow public access to staff pins (access controlled via API)
 CREATE POLICY "Allow full access to staff_pins" ON staff_pins
 FOR ALL USING (true);
+
+-- Enable RLS on push_subscriptions table
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- Allow service role to perform all operations on bookings
+CREATE POLICY "Allow service role full access to bookings" ON bookings
+FOR ALL USING (auth.role() = 'service_role');
+
+-- Allow service role to perform all operations on staff_pins
+CREATE POLICY "Allow service role full access to staff_pins" ON staff_pins
+FOR ALL USING (auth.role() = 'service_role');
+
+-- Allow service role to perform all operations on push_subscriptions
+CREATE POLICY "Allow service role full access to push_subscriptions" ON push_subscriptions
+FOR ALL USING (auth.role() = 'service_role');
+
+-- Allow anonymous users to create push subscriptions (for registration)
+CREATE POLICY "Allow anonymous push subscription creation" ON push_subscriptions
+FOR INSERT WITH CHECK (true);
+
+-- Allow anonymous users to read their own subscriptions (for updates)
+CREATE POLICY "Allow anonymous push subscription read" ON push_subscriptions
+FOR SELECT USING (true);
+
+-- Allow anonymous users to update their own subscriptions
+CREATE POLICY "Allow anonymous push subscription update" ON push_subscriptions
+FOR UPDATE USING (true);
+
+-- Allow anonymous users to delete their own subscriptions
+CREATE POLICY "Allow anonymous push subscription delete" ON push_subscriptions
+FOR DELETE USING (true);
 ```
 
 ## 5. Set Environment Variables

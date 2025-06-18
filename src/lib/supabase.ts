@@ -33,4 +33,15 @@ export interface StaffPinRow {
   created_at: string;
   last_used?: string;
   updated_at: string;
+}
+
+// Push subscription interface for Supabase
+export interface PushSubscriptionRow {
+  id: string;
+  endpoint: string;
+  p256dh_key: string;
+  auth_key: string;
+  user_agent?: string;
+  created_at: string;
+  updated_at: string;
 } 
