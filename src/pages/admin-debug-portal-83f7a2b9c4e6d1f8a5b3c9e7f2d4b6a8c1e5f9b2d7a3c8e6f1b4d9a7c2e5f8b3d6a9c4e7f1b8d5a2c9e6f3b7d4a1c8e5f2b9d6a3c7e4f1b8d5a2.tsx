@@ -338,7 +338,7 @@ export default function AdminDebugPortal() {
   const loadStaffConfig = async () => {
     try {
       const result = await supabaseStaffService.getAllStaffPins(ADMIN_PASSWORD);
-      if (result.success) {
+      if (result.success && result.staff.length > 0) {
         setAllStaff(result.staff);
         // Maintain backward compatibility - create legacy config from new data
         const activeStaff = result.staff.find(s => s.is_active);
@@ -346,7 +346,7 @@ export default function AdminDebugPortal() {
           setStaffPinConfig({
             pin: '',
             createdAt: activeStaff.created_at,
-            lastUsed: activeStaff.last_used,
+            lastUsed: activeStaff.last_used_at,
             isActive: activeStaff.is_active
           });
         } else {
@@ -1226,9 +1226,9 @@ export default function AdminDebugPortal() {
                                   <div>
                                     <span className="font-medium">Created:</span> {new Date(staff.created_at).toLocaleDateString()}
                                   </div>
-                                  {staff.last_used && (
+                                  {staff.last_used_at && (
                                     <div>
-                                      <span className="font-medium">Last Used:</span> {new Date(staff.last_used).toLocaleDateString()}
+                                      <span className="font-medium">Last Used:</span> {new Date(staff.last_used_at).toLocaleDateString()}
                                     </div>
                                   )}
                                   {staff.notes && (

@@ -327,7 +327,7 @@ class SupabaseStaffService {
           return {
             pin: '', // Don't expose actual PIN
             createdAt: firstActive.created_at,
-            lastUsed: firstActive.last_used,
+            lastUsed: firstActive.last_used_at,
             isActive: firstActive.is_active
           };
         }
