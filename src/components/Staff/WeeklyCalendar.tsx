@@ -43,15 +43,10 @@ export default function WeeklyCalendar({ selectedWeek, onBookingClick }: WeeklyC
     // Normalize to prevent timezone issues
     startOfWeek.setHours(12, 0, 0, 0); // Use noon to avoid DST issues
 
-    console.log('🗓️ Week calculation debug:');
-    console.log('Selected week:', selectedWeek.toISOString());
-    console.log('Start of week:', startOfWeek.toISOString());
-
     for (let i = 0; i < 7; i++) {
       const date = new Date(startOfWeek);
       date.setDate(startOfWeek.getDate() + i);
       days.push(date);
-      console.log(`Day ${i} (${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i]}):`, date.toISOString().split('T')[0]);
     }
     return days;
   };

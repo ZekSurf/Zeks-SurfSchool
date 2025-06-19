@@ -28,75 +28,87 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       cancelled: bookings?.filter(b => b.status === 'cancelled').length || 0,
     };
 
-    // Get current week range for debugging
+    // Get current week range
     const now = new Date();
     const startOfWeek = new Date(now);
     const day = startOfWeek.getDay();
-    const diff = startOfWeek.getDate() - day;
+    const diff = startOfWeek.getDate() - day; // First day is Sunday
     startOfWeek.setDate(diff);
-    startOfWeek.setHours(0, 0, 0, 0);
     
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+    
+    const startDateStr = startOfWeek.toISOString().split('T')[0];
+    const endDateStr = endOfWeek.toISOString().split('T')[0];
+    
+    const currentWeekBookings = bookings?.filter(b => 
+      b.lesson_date >= startDateStr && b.lesson_date <= endDateStr
+    ) || [];
 
-    const currentWeekBookings = bookings?.filter(booking => {
-      const bookingDate = new Date(booking.lesson_date);
-      return bookingDate >= startOfWeek && bookingDate <= endOfWeek;
-    }) || [];
+    // Get cache entries from time_slots_cache table
+    const { data: cacheEntries, error: cacheError } = await supabase
+      .from('time_slots_cache')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    // Create sample date strings for comparison
-    const sampleDates = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startOfWeek);
-      date.setDate(startOfWeek.getDate() + i);
-      sampleDates.push({
-        dayName: date.toLocaleDateString('en-US', { weekday: 'long' }),
-        dateISO: date.toISOString().split('T')[0],
-        dateObj: date.toISOString()
-      });
+    if (cacheError) {
+      console.error('Cache table error:', cacheError);
     }
 
-    return res.status(200).json({
-      success: true,
-      debug: {
-        totalBookings: bookings?.length || 0,
+    // Process cache entries for display
+    const processedCacheEntries = (cacheEntries || []).map(entry => ({
+      cache_key: entry.cache_key,
+      beach: entry.beach,
+      date: entry.date,
+      created_at: entry.created_at,
+      expires_at: entry.expires_at,
+      is_expired: new Date() > new Date(entry.expires_at),
+      slots_count: entry.data?.slots?.length || 0,
+      has_data: !!entry.data
+    }));
+
+    const debugData = {
+      bookings: {
+        total: bookings?.length || 0,
         statusCounts,
         currentWeekRange: {
-          start: startOfWeek.toISOString().split('T')[0],
-          end: endOfWeek.toISOString().split('T')[0]
+          start: startDateStr,
+          end: endDateStr
         },
         currentWeekBookings: currentWeekBookings.length,
-        sampleWeekDates: sampleDates,
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'configured' : 'missing',
-        supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'configured' : 'missing'
+        allBookings: bookings?.map(b => ({
+          id: b.id,
+          customer_name: b.customer_name,
+          lesson_date: b.lesson_date,
+          start_time: b.start_time,
+          beach: b.beach,
+          status: b.status,
+          created_at: b.created_at
+        })) || []
       },
-      rawBookingsFromDB: bookings?.map(booking => ({
-        id: booking.id,
-        confirmationNumber: booking.confirmation_number,
-        customerName: booking.customer_name,
-        beach: booking.beach,
-        lessonDate: booking.lesson_date,
-        lessonDateType: typeof booking.lesson_date,
-        startTime: booking.start_time,
-        endTime: booking.end_time,
-        status: booking.status,
-        createdAt: booking.created_at
-      })) || [],
-      transformedBookings: bookings?.map(booking => ({
-        id: booking.id,
-        confirmationNumber: booking.confirmation_number,
-        customerName: booking.customer_name,
-        beach: booking.beach,
-        date: booking.lesson_date, // This is what gets compared in the calendar
-        dateType: typeof booking.lesson_date,
-        startTime: booking.start_time,
-        endTime: booking.end_time,
-        status: booking.status,
-        createdAt: booking.created_at
-      })) || []
-    });
+      cache: {
+        total_entries: cacheEntries?.length || 0,
+        valid_entries: processedCacheEntries.filter(e => !e.is_expired).length,
+        expired_entries: processedCacheEntries.filter(e => e.is_expired).length,
+        entries: processedCacheEntries,
+        cache_error: cacheError ? cacheError.message : null
+      },
+      debug_info: {
+        timestamp: new Date().toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        current_date: now.toISOString().split('T')[0]
+      }
+    };
 
+    // Log to console for immediate debugging
+    console.log('🔍 BOOKING DEBUG DATA:');
+    console.log('📊 Total bookings:', debugData.bookings.total);
+    console.log('📅 Current week bookings:', debugData.bookings.currentWeekBookings);
+    console.log('💾 Cache entries:', debugData.cache.total_entries);
+    console.log('✅ Valid cache entries:', debugData.cache.valid_entries);
+    console.log('❌ Expired cache entries:', debugData.cache.expired_entries);
+    
+    return res.status(200).json(debugData);
   } catch (error) {
     console.error('Debug API error:', error);
     return res.status(500).json({ 
