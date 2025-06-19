@@ -31,9 +31,15 @@
 - **React Context API** - Cart state management
 - **Local Storage** - Session persistence for chat
 
+### Backend Integration
+- **Supabase 2.50.0** - Database backend for booking and staff management
+- **Stripe 18.2.1** - Payment processing and webhooks
+- **Web Push 3.6.7** - Push notification service for staff alerts
+
 ### Additional Libraries
 - **clsx & tailwind-merge** - Conditional styling utilities
 - **UUID 9.0.0** - Unique identifier generation
+- **Micro 10.0.1** - Lightweight webhook processing
 
 ---
 
@@ -180,7 +186,48 @@ The application uses a surf-themed color palette defined in both Tailwind config
   - Ocean safety
   - Surf etiquette
 
-### 5. Responsive Design
+### 5. Staff Portal & Management System
+**Location**: `src/pages/staff-portal-*.tsx` & `src/lib/supabaseStaffService.ts`
+- **Secure Access**: PIN-protected staff portal with obscure URL
+- **Weekly Calendar**: Complete booking management interface
+- **Real-time Sync**: Automatic booking synchronization with payments
+- **Status Management**: Update lesson status (confirmed/completed/cancelled)
+- **Customer Contact**: Direct access to customer phone/email
+- **Database Integration**: Supabase backend for persistent data
+
+### 6. Push Notification System
+**Location**: `src/lib/pushNotificationService.ts` & `src/pages/api/push/`
+- **Staff Alerts**: Real-time notifications for new bookings
+- **iOS PWA Support**: Add-to-home-screen functionality
+- **Subscription Management**: Device registration and cleanup
+- **VAPID Authentication**: Secure push notification delivery
+- **Service Worker**: Background notification handling
+
+### 7. Review Collection System
+**Location**: `src/pages/review.tsx` & `src/lib/reviewService.ts`
+- **URL-based Forms**: Pre-filled review forms from email links
+- **Multi-rating System**: Overall, instructor, equipment, experience ratings
+- **Admin Moderation**: Review approval workflow in admin panel
+- **Data Export**: JSON export for review management
+- **Duplicate Prevention**: Payment ID-based duplicate checking
+
+### 8. Admin Debug Portal
+**Location**: `src/pages/admin-debug-portal-*.tsx`
+- **System Monitoring**: Cache, API, and storage inspection
+- **Review Management**: Approve, reject, and manage customer reviews
+- **Staff Management**: PIN creation and staff portal administration
+- **Data Export**: Complete system data export capabilities
+- **Performance Metrics**: Real-time system statistics
+
+### 9. Payment Integration
+**Location**: `src/pages/api/webhooks/stripe.ts` & Stripe APIs
+- **Stripe Integration**: Secure payment processing with webhooks
+- **Automatic Booking**: Payment completion triggers booking creation
+- **Metadata Storage**: Complete booking details in payment metadata
+- **N8N Webhooks**: Integration with external automation systems
+- **Tax Calculation**: Automatic tax computation (8% rate)
+
+### 10. Responsive Design
 - **Mobile-First**: Optimized for all screen sizes
 - **Breakpoint System**: Custom responsive utilities
 - **Touch-Friendly**: Mobile-optimized interactions
@@ -294,6 +341,13 @@ npm run lint        # Run ESLint
 ✅ Shopping cart with discounts
 ✅ Educational blog system
 ✅ Beach information system
+✅ Staff portal with PIN authentication
+✅ Push notification system for staff alerts
+✅ Review collection and management system
+✅ Admin debug portal with comprehensive tools
+✅ Stripe payment integration with webhooks
+✅ Supabase database backend
+✅ PWA functionality for iOS devices
 
 ### Technical Considerations
 - **Image Optimization**: Some large image files could be optimized

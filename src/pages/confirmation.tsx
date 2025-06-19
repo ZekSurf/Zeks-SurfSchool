@@ -21,12 +21,31 @@ export default function ConfirmationPage() {
     // Generate a random confirmation number
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    setConfirmationNumber(`SURF-${timestamp}-${random}`);
+    const confirmNumber = `SURF-${timestamp}-${random}`;
+    setConfirmationNumber(confirmNumber);
 
     // Get payment intent ID from URL parameters
     const { payment_intent } = router.query;
     if (payment_intent && typeof payment_intent === 'string') {
       setPaymentIntentId(payment_intent);
+    }
+
+    // Google Ads Conversion Tracking
+    if (typeof window !== 'undefined' && window.gtag) {
+      // Track the conversion
+      window.gtag('event', 'conversion', {
+        'send_to': 'AW-17228135601/xxxxx-xxxxx', // You'll need to replace with your actual conversion ID
+        'value': 100, // You can dynamically set this based on booking value
+        'currency': 'USD',
+        'transaction_id': confirmNumber
+      });
+
+      // Track as a custom event for optimization
+      window.gtag('event', 'booking_completed', {
+        'event_category': 'engagement',
+        'event_label': 'surf_lesson_booking',
+        'value': 100
+      });
     }
   }, [router.query]);
 

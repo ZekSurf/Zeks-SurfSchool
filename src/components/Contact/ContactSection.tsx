@@ -6,6 +6,27 @@ export const ContactSection = () => {
       <div className="max-w-[1920px] mx-auto">
         <h1 className="text-4xl font-bold text-center mb-2">Got a Question?</h1>
         
+        {/* Contact Information */}
+        <div className="text-center mb-8 space-y-2">
+          <div className="flex justify-center items-center space-x-6 text-lg">
+            <a 
+              href="tel:+1-808-938-6347" 
+              className="flex items-center space-x-2 text-[#1DA9C7] hover:text-[#1897B2] transition-colors"
+            >
+              <span>📞</span>
+              <span>(808) 938-6347</span>
+            </a>
+            <a 
+              href="mailto:zeksurfschool@gmail.com" 
+              className="flex items-center space-x-2 text-[#1DA9C7] hover:text-[#1897B2] transition-colors"
+            >
+              <span>✉️</span>
+              <span>zeksurfschool@gmail.com</span>
+            </a>
+          </div>
+          <p className="text-gray-600">📍 Serving San Onofre, Doheny & T-Street Beaches, CA</p>
+        </div>
+        
         <div className="max-w-[1200px] mx-auto mt-12 px-4 sm:px-6 lg:px-8">
           <form className="space-y-8">
             <div>

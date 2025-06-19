@@ -3,6 +3,7 @@ import type { AppProps } from 'next/app'
 import { CartProvider } from '@/context/CartContext'
 import Head from 'next/head'
 import { useEffect } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 
 export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
@@ -22,6 +23,22 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <>
       <Head>
+        {/* Google Ads (gtag.js) - Global Tracking */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=AW-17228135601"
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'AW-17228135601');
+            `,
+          }}
+        />
+        
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#2563eb" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -32,6 +49,7 @@ export default function App({ Component, pageProps }: AppProps) {
       </Head>
     <CartProvider>
       <Component {...pageProps} />
+      <Analytics />
     </CartProvider>
     </>
   )

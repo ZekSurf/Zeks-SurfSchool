@@ -19,6 +19,7 @@ export default function StaffPortal() {
   const [syncMessage, setSyncMessage] = useState('');
   const [notificationStatus, setNotificationStatus] = useState<'checking' | 'enabled' | 'disabled' | 'unsupported'>('checking');
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     checkPersistentLogin();
@@ -411,15 +412,15 @@ Check browser console for full booking details.`);
   return (
           <>
         <Head>
-          <title>Staff Portal - Weekly Schedule - Zek's Surf School</title>
+          <title>Zek's Surf School - Staff Schedule</title>
           <meta name="robots" content="noindex, nofollow" />
           <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌊</text></svg>" />
           
           {/* PWA Icons for iOS */}
-          <meta name="application-name" content="Surf Staff" />
+          <meta name="application-name" content="Zek's Surf School" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-          <meta name="apple-mobile-web-app-title" content="Surf Staff" />
+          <meta name="apple-mobile-web-app-title" content="Zek's Surf School" />
           <meta name="theme-color" content="#2563eb" />
           
           {/* iOS App Icons */}
@@ -439,14 +440,14 @@ Check browser console for full booking details.`);
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-3 md:py-4">
               <div>
-                <h1 className="text-xl md:text-2xl font-bold text-gray-800">Staff Portal</h1>
+                <h1 className="text-xl md:text-2xl font-bold text-gray-800">Zek's Surf School</h1>
                 <p className="text-sm md:text-base text-gray-600 hidden sm:block">Weekly Booking Schedule</p>
               </div>
               <button
-                onClick={handleLogout}
-                className="bg-red-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm md:text-base"
+                onClick={() => setShowSettings(!showSettings)}
+                className="bg-gray-100 text-gray-700 px-3 md:px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm md:text-base flex items-center gap-2"
               >
-                Logout
+                ⚙️
               </button>
             </div>
           </div>
@@ -477,28 +478,7 @@ Check browser console for full booking details.`);
                   Next →
                 </button>
               </div>
-              <button
-                onClick={handleSyncBookings}
-                disabled={isSyncing}
-                className="bg-green-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-green-400 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
-              >
-                {isSyncing ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Syncing...
-                  </>
-                ) : (
-                  <>
-                    🔄 Sync New Bookings
-                  </>
-                )}
-              </button>
-              <button
-                onClick={handleDebugBookings}
-                className="bg-purple-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
-              >
-                🐛 Debug
-              </button>
+
             </div>
 
             <div className="text-base md:text-lg font-semibold text-gray-800 text-center md:text-left">
@@ -508,8 +488,7 @@ Check browser console for full booking details.`);
                   day: 'numeric'
                 })} - {weekRange.end.toLocaleDateString('en-US', { 
                   month: 'long', 
-                  day: 'numeric',
-                  year: 'numeric'
+                  day: 'numeric'
                 })}
               </span>
               <span className="md:hidden">
@@ -518,8 +497,7 @@ Check browser console for full booking details.`);
                   day: 'numeric'
                 })} - {weekRange.end.toLocaleDateString('en-US', { 
                   month: 'short', 
-                  day: 'numeric',
-                  year: '2-digit'
+                  day: 'numeric'
                 })}
               </span>
             </div>
@@ -536,61 +514,135 @@ Check browser console for full booking details.`);
             </div>
           )}
 
-          {/* Push Notification Controls */}
-          <div className="mb-4 bg-white border border-gray-200 rounded-lg p-3 md:p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">📱</span>
-                  <div>
-                    <h3 className="font-medium text-gray-800 text-sm md:text-base">Push Notifications</h3>
-                    <p className="text-xs md:text-sm text-gray-600">
-                      {notificationStatus === 'checking' && 'Checking status...'}
-                      {notificationStatus === 'enabled' && '✅ Enabled - You\'ll receive alerts for new bookings'}
-                      {notificationStatus === 'disabled' && '❌ Disabled - Enable to get booking alerts'}
-                      {notificationStatus === 'unsupported' && '❌ Not supported on this device/browser'}
-                    </p>
+          {/* Settings Panel */}
+          {showSettings && (
+            <div className="mb-4 bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+              <div className="bg-gray-50 px-3 md:px-4 py-2 border-b border-gray-200">
+                <h3 className="font-medium text-gray-800 text-sm md:text-base flex items-center gap-2">
+                  ⚙️ Settings & Controls
+                </h3>
+              </div>
+              
+              <div className="p-3 md:p-4 space-y-4">
+                {/* Push Notification Controls */}
+                <div className="border border-gray-100 rounded-lg p-3">
+                  <div className="flex flex-col space-y-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">📱</span>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-800 text-sm">Push Notifications</h4>
+                        <p className="text-xs text-gray-600">
+                          {notificationStatus === 'checking' && 'Checking status...'}
+                          {notificationStatus === 'enabled' && '✅ Enabled - You\'ll receive alerts for new bookings'}
+                          {notificationStatus === 'disabled' && '❌ Disabled - Enable to get booking alerts'}
+                          {notificationStatus === 'unsupported' && '❌ Not supported on this device/browser'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {notificationStatus !== 'unsupported' && (
+                      <div className="flex flex-wrap gap-2">
+                        {notificationStatus === 'disabled' ? (
+                          <button
+                            onClick={handleEnableNotifications}
+                            className="px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors"
+                          >
+                            Enable
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleDisableNotifications}
+                            className="px-3 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors"
+                          >
+                            Disable
+                          </button>
+                        )}
+                        
+                        <button
+                          onClick={handleTestNotification}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors"
+                        >
+                          Test
+                        </button>
+                        
+                        <button
+                          onClick={handleTestBookingNotification}
+                          className="px-3 py-1.5 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 transition-colors"
+                        >
+                          Test Booking
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sync Controls */}
+                <div className="border border-gray-100 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">🔄</span>
+                      <div>
+                        <h4 className="font-medium text-gray-800 text-sm">Sync Bookings</h4>
+                        <p className="text-xs text-gray-600">Refresh and sync new booking data</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSyncBookings}
+                      disabled={isSyncing}
+                      className="px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:bg-green-400 transition-colors flex items-center gap-1"
+                    >
+                      {isSyncing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                          Syncing...
+                        </>
+                      ) : (
+                        'Sync Now'
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Debug Controls */}
+                <div className="border border-gray-100 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">🐛</span>
+                      <div>
+                        <h4 className="font-medium text-gray-800 text-sm">Debug Tools</h4>
+                        <p className="text-xs text-gray-600">System diagnostics and testing</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleDebugBookings}
+                      className="px-3 py-1.5 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 transition-colors"
+                    >
+                      Debug
+                    </button>
+                  </div>
+                </div>
+
+                {/* Account Controls */}
+                <div className="border border-gray-100 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">🚪</span>
+                      <div>
+                        <h4 className="font-medium text-gray-800 text-sm">Account</h4>
+                        <p className="text-xs text-gray-600">Sign out of staff portal</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="px-3 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors"
+                    >
+                      Logout
+                    </button>
                   </div>
                 </div>
               </div>
-              
-              <div className="flex gap-2">
-                {notificationStatus !== 'unsupported' && (
-                  <>
-                    {notificationStatus === 'disabled' ? (
-                      <button
-                        onClick={handleEnableNotifications}
-                        className="px-3 py-1 bg-green-600 text-white rounded text-xs md:text-sm hover:bg-green-700 transition-colors"
-                      >
-                        Enable
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleDisableNotifications}
-                        className="px-3 py-1 bg-red-600 text-white rounded text-xs md:text-sm hover:bg-red-700 transition-colors"
-                      >
-                        Disable
-                      </button>
-                    )}
-                    
-                    <button
-                      onClick={handleTestNotification}
-                      className="px-3 py-1 bg-blue-600 text-white rounded text-xs md:text-sm hover:bg-blue-700 transition-colors"
-                    >
-                      Test
-                    </button>
-                    
-                    <button
-                      onClick={handleTestBookingNotification}
-                      className="px-3 py-1 bg-purple-600 text-white rounded text-xs md:text-sm hover:bg-purple-700 transition-colors"
-                    >
-                      Test Booking
-                    </button>
-                  </>
-                )}
-              </div>
             </div>
-          </div>
+          )}
 
           {/* Weekly Calendar */}
           <WeeklyCalendar
