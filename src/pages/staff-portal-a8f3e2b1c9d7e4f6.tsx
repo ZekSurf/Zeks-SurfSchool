@@ -308,11 +308,11 @@ export default function StaffPortal() {
           <meta name="theme-color" content="#2563eb" />
           
           {/* iOS App Icons */}
-          <link rel="apple-touch-icon" href="/staff-icon-180.svg" />
-          <link rel="apple-touch-icon" sizes="180x180" href="/staff-icon-180.svg" />
-          <link rel="apple-touch-icon" sizes="152x152" href="/staff-icon-180.svg" />
-          <link rel="apple-touch-icon" sizes="120x120" href="/staff-icon-180.svg" />
-          <link rel="apple-touch-icon" sizes="76x76" href="/staff-icon-180.svg" />
+          <link rel="apple-touch-icon" href="/staff-icon-180.svg?v=3" />
+          <link rel="apple-touch-icon" sizes="180x180" href="/staff-icon-180.svg?v=3" />
+          <link rel="apple-touch-icon" sizes="152x152" href="/staff-icon-180.svg?v=3" />
+          <link rel="apple-touch-icon" sizes="120x120" href="/staff-icon-180.svg?v=3" />
+          <link rel="apple-touch-icon" sizes="76x76" href="/staff-icon-180.svg?v=3" />
           
           {/* Manifest for PWA */}
           <link rel="manifest" href="/manifest.json" />
@@ -399,11 +399,11 @@ export default function StaffPortal() {
           <meta name="theme-color" content="#2563eb" />
           
           {/* iOS App Icons */}
-          <link rel="apple-touch-icon" href="/staff-icon-180.svg" />
-          <link rel="apple-touch-icon" sizes="180x180" href="/staff-icon-180.svg" />
-          <link rel="apple-touch-icon" sizes="152x152" href="/staff-icon-180.svg" />
-          <link rel="apple-touch-icon" sizes="120x120" href="/staff-icon-180.svg" />
-          <link rel="apple-touch-icon" sizes="76x76" href="/staff-icon-180.svg" />
+          <link rel="apple-touch-icon" href="/staff-icon-180.svg?v=3" />
+          <link rel="apple-touch-icon" sizes="180x180" href="/staff-icon-180.svg?v=3" />
+          <link rel="apple-touch-icon" sizes="152x152" href="/staff-icon-180.svg?v=3" />
+          <link rel="apple-touch-icon" sizes="120x120" href="/staff-icon-180.svg?v=3" />
+          <link rel="apple-touch-icon" sizes="76x76" href="/staff-icon-180.svg?v=3" />
           
           {/* Manifest for PWA */}
           <link rel="manifest" href="/manifest.json" />
