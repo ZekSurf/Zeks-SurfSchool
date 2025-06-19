@@ -127,11 +127,19 @@ class SupabaseStaffService {
   // Get bookings for a specific week
   public async getBookingsForWeek(startDate: Date): Promise<{ success: boolean; bookings: CompletedBooking[]; error?: string }> {
     try {
-      const endDate = new Date(startDate);
-      endDate.setDate(startDate.getDate() + 6);
+      // Use the same week calculation as WeeklyCalendar component
+      const startOfWeek = new Date(startDate);
+      const day = startOfWeek.getDay();
+      const diff = startOfWeek.getDate() - day; // First day is Sunday
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0); // Start of day
       
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999); // End of day
+      
+      const startDateStr = startOfWeek.toISOString().split('T')[0];
+      const endDateStr = endOfWeek.toISOString().split('T')[0];
 
       const { data, error } = await supabase
         .from('bookings')

@@ -45,6 +45,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return bookingDate >= startOfWeek && bookingDate <= endOfWeek;
     }) || [];
 
+    // Create sample date strings for comparison
+    const sampleDates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + i);
+      sampleDates.push({
+        dayName: date.toLocaleDateString('en-US', { weekday: 'long' }),
+        dateISO: date.toISOString().split('T')[0],
+        dateObj: date.toISOString()
+      });
+    }
+
     return res.status(200).json({
       success: true,
       debug: {
@@ -55,15 +67,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           end: endOfWeek.toISOString().split('T')[0]
         },
         currentWeekBookings: currentWeekBookings.length,
+        sampleWeekDates: sampleDates,
         supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'configured' : 'missing',
         supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'configured' : 'missing'
       },
-      bookings: bookings?.map(booking => ({
+      rawBookingsFromDB: bookings?.map(booking => ({
         id: booking.id,
         confirmationNumber: booking.confirmation_number,
         customerName: booking.customer_name,
         beach: booking.beach,
         lessonDate: booking.lesson_date,
+        lessonDateType: typeof booking.lesson_date,
+        startTime: booking.start_time,
+        endTime: booking.end_time,
+        status: booking.status,
+        createdAt: booking.created_at
+      })) || [],
+      transformedBookings: bookings?.map(booking => ({
+        id: booking.id,
+        confirmationNumber: booking.confirmation_number,
+        customerName: booking.customer_name,
+        beach: booking.beach,
+        date: booking.lesson_date, // This is what gets compared in the calendar
+        dateType: typeof booking.lesson_date,
         startTime: booking.start_time,
         endTime: booking.end_time,
         status: booking.status,

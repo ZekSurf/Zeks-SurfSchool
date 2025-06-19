@@ -30,9 +30,9 @@ export default function App({ Component, pageProps }: AppProps) {
         <meta name="apple-mobile-web-app-title" content="Surf Staff" />
         <link rel="apple-touch-icon" href="/zek-surf.png" />
       </Head>
-      <CartProvider>
-        <Component {...pageProps} />
-      </CartProvider>
+    <CartProvider>
+      <Component {...pageProps} />
+    </CartProvider>
     </>
   )
 } 

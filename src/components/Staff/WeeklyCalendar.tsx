@@ -39,11 +39,19 @@ export default function WeeklyCalendar({ selectedWeek, onBookingClick }: WeeklyC
     const day = startOfWeek.getDay();
     const diff = startOfWeek.getDate() - day; // First day is Sunday
     startOfWeek.setDate(diff);
+    
+    // Normalize to prevent timezone issues
+    startOfWeek.setHours(12, 0, 0, 0); // Use noon to avoid DST issues
+
+    console.log('🗓️ Week calculation debug:');
+    console.log('Selected week:', selectedWeek.toISOString());
+    console.log('Start of week:', startOfWeek.toISOString());
 
     for (let i = 0; i < 7; i++) {
       const date = new Date(startOfWeek);
       date.setDate(startOfWeek.getDate() + i);
       days.push(date);
+      console.log(`Day ${i} (${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i]}):`, date.toISOString().split('T')[0]);
     }
     return days;
   };
@@ -100,17 +108,24 @@ export default function WeeklyCalendar({ selectedWeek, onBookingClick }: WeeklyC
     <div className="bg-white rounded-lg shadow-sm border">
       {/* Desktop Calendar Header */}
       <div className="hidden md:grid grid-cols-7 border-b">
-        {dayNames.map((dayName, index) => (
-          <div key={dayName} className="p-4 text-center border-r last:border-r-0">
-            <div className="font-semibold text-gray-800">{dayName}</div>
-            <div className="text-sm text-gray-500 mt-1">
-              {weekDays[index].toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric' 
-              })}
+        {dayNames.map((dayName, index) => {
+          const headerDate = weekDays[index];
+          const dateStr = headerDate.toISOString().split('T')[0];
+          const displayDate = new Date(dateStr + 'T12:00:00'); // Force noon UTC to avoid timezone issues
+          
+          return (
+            <div key={dayName} className="p-4 text-center border-r last:border-r-0">
+              <div className="font-semibold text-gray-800">{dayName}</div>
+              <div className="text-sm text-gray-500 mt-1">
+                {displayDate.toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric',
+                  timeZone: 'UTC'
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Desktop Calendar Body */}
@@ -121,7 +136,7 @@ export default function WeeklyCalendar({ selectedWeek, onBookingClick }: WeeklyC
           
           return (
             <div
-              key={index}
+              key={date.toISOString().split('T')[0]}
               className={`min-h-[200px] p-2 border-r last:border-r-0 ${
                 isToday ? 'bg-blue-50' : ''
               }`}
@@ -176,7 +191,7 @@ export default function WeeklyCalendar({ selectedWeek, onBookingClick }: WeeklyC
           
           return (
             <div
-              key={index}
+              key={date.toISOString().split('T')[0]}
               className={`border-b last:border-b-0 ${
                 isToday ? 'bg-blue-50' : ''
               }`}
@@ -193,9 +208,10 @@ export default function WeeklyCalendar({ selectedWeek, onBookingClick }: WeeklyC
                       {dayNames[index]}
                     </div>
                     <div className="text-sm text-gray-600">
-                      {date.toLocaleDateString('en-US', { 
+                      {new Date(date.toISOString().split('T')[0] + 'T12:00:00').toLocaleDateString('en-US', { 
                         month: 'long', 
-                        day: 'numeric' 
+                        day: 'numeric',
+                        timeZone: 'UTC'
                       })}
                     </div>
                   </div>
