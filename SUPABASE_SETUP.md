@@ -24,10 +24,10 @@ This guide will help you set up Supabase as the database backend for the staff p
    - **Project URL**: `https://your-project-id.supabase.co`
    - **Anon public key**: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`
 
-## 3. Create Database Table
+## 3. Create Database Tables
 
 1. In your Supabase dashboard, go to **SQL Editor**
-2. Run the following SQL to create the bookings table:
+2. Run the following SQL to create all required tables:
 
 ```sql
 -- Create bookings table for staff portal
@@ -119,6 +119,23 @@ CREATE TRIGGER update_push_subscriptions_updated_at
     BEFORE UPDATE ON push_subscriptions 
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
+
+-- Create time_slots_cache table for surf booking availability caching
+CREATE TABLE time_slots_cache (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  cache_key text UNIQUE NOT NULL,
+  beach text NOT NULL,
+  date date NOT NULL,
+  data jsonb NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  expires_at timestamptz NOT NULL
+);
+
+-- Create indexes for time slots cache
+CREATE INDEX idx_cache_key ON time_slots_cache(cache_key);
+CREATE INDEX idx_cache_beach_date ON time_slots_cache(beach, date);
+CREATE INDEX idx_cache_expires_at ON time_slots_cache(expires_at);
+CREATE INDEX idx_cache_date ON time_slots_cache(date);
 ```
 
 ## 4. Configure Row Level Security (RLS)
@@ -143,6 +160,13 @@ FOR ALL USING (true);
 -- Enable RLS on push_subscriptions table
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 
+-- Enable RLS on time_slots_cache table
+ALTER TABLE time_slots_cache ENABLE ROW LEVEL SECURITY;
+
+-- Allow public access to time slots cache
+CREATE POLICY "Allow full access to time_slots_cache" ON time_slots_cache
+FOR ALL USING (true);
+
 -- Allow service role to perform all operations on bookings
 CREATE POLICY "Allow service role full access to bookings" ON bookings
 FOR ALL USING (auth.role() = 'service_role');
@@ -153,6 +177,10 @@ FOR ALL USING (auth.role() = 'service_role');
 
 -- Allow service role to perform all operations on push_subscriptions
 CREATE POLICY "Allow service role full access to push_subscriptions" ON push_subscriptions
+FOR ALL USING (auth.role() = 'service_role');
+
+-- Allow service role to perform all operations on time_slots_cache
+CREATE POLICY "Allow service role full access to time_slots_cache" ON time_slots_cache
 FOR ALL USING (auth.role() = 'service_role');
 
 -- Allow anonymous users to create push subscriptions (for registration)
@@ -198,41 +226,63 @@ Test these features:
 - ✅ Login with PIN
 - ✅ View bookings on weekly calendar
 - ✅ Click booking details to see customer info
-- ✅ Update booking status (confirmed → completed)
-- ✅ Sync button loads bookings from database
-- ✅ New bookings appear automatically after payment
+- ✅ Cache invalidation when new bookings are made
+- ✅ Push notifications to staff devices
 
-## 8. Add Your First Staff Member
+## 8. Cache System Benefits
 
-To get started with the staff management system:
+The new Supabase-based cache system provides several advantages:
 
-1. Open the **Admin Debug Portal**
-2. Go to the "👥 Staff Portal" tab
-3. Click "➕ Add Staff"
-4. Fill in the form:
-   - **PIN**: 1234 (4-6 digits)
-   - **Full Name**: John Doe
-   - **Role**: Surf Instructor
-   - **Phone**: (555) 123-4567
-   - **Email**: john@zeksurfschool.com
-   - **Notes**: Head instructor, certified lifeguard
-5. Click "Create Staff Member"
+- **Server-side Storage**: Cache persists across deployments and server restarts
+- **Automatic Invalidation**: When someone books a lesson, the cache for that date is automatically cleared
+- **Shared Cache**: All users see the same cached data, improving consistency
+- **Real-time Updates**: Staff portals will immediately see updated availability after bookings
+- **Reliable Performance**: Database-backed caching is more reliable than localStorage
 
-Your staff can now access the portal using their PIN at:
-`/staff-portal-a8f3e2b1c9d7e4f6`
+## 9. Optional: Insert Sample Staff Member
 
-## 9. Staff Management Features
+To create your first staff member, run this SQL:
 
-The enhanced staff portal now supports:
+```sql
+-- Insert first staff member (replace with actual details)
+INSERT INTO staff_pins (pin, staff_name, role, phone, email, notes) 
+VALUES (
+  '123456',  -- Replace with actual PIN
+  'Zek',     -- Replace with actual name
+  'admin',   -- 'admin' or 'surf_instructor'
+  '+1234567890',  -- Replace with actual phone
+  'zek@example.com',  -- Replace with actual email
+  'Main instructor and administrator'  -- Optional notes
+);
+```
 
-- ✅ **Multiple Staff Members**: Create unlimited staff accounts
-- ✅ **Role-Based Access**: Surf Instructors and Admins
-- ✅ **Contact Information**: Phone, email, and notes for each staff member
-- ✅ **Active/Inactive Status**: Enable/disable staff access without deletion
-- ✅ **PIN Management**: Unique 4-6 digit PINs for each staff member
-- ✅ **Last Used Tracking**: Monitor when staff last accessed the portal
-- ✅ **Quick Actions**: Edit, enable/disable, or delete staff members
-- ✅ **Staff Statistics**: Overview of total, active, and admin staff
+## Troubleshooting
+
+### Common Issues:
+
+1. **Environment Variables**: Make sure your Supabase URL and anon key are correct
+2. **RLS Policies**: If you get permission errors, check that RLS policies are properly configured
+3. **Table Creation**: If tables don't exist, re-run the SQL commands in the SQL Editor
+4. **Cache Not Working**: Check that the time_slots_cache table was created successfully
+
+### Checking Cache Status:
+
+You can monitor the cache by querying the time_slots_cache table:
+
+```sql
+-- View all cache entries
+SELECT cache_key, beach, date, created_at, expires_at 
+FROM time_slots_cache 
+ORDER BY created_at DESC;
+
+-- View expired entries
+SELECT cache_key, beach, date, created_at, expires_at 
+FROM time_slots_cache 
+WHERE expires_at < now();
+
+-- Clear expired entries manually
+DELETE FROM time_slots_cache WHERE expires_at < now();
+```
 
 ## 10. Data Migration (if needed)
 

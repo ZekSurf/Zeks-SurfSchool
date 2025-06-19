@@ -6,8 +6,13 @@ export const CacheDemo = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [lastAction, setLastAction] = useState<string>('');
 
-  const updateCacheInfo = () => {
-    setCacheInfo(bookingService.getCacheInfo());
+  const updateCacheInfo = async () => {
+    try {
+      const info = await bookingService.getCacheInfo();
+      setCacheInfo(info);
+    } catch (error) {
+      console.error('Error getting cache info:', error);
+    }
   };
 
   useEffect(() => {
@@ -28,28 +33,52 @@ export const CacheDemo = () => {
       setLastAction(`❌ Failed to fetch ${beach} data: ${error}`);
     } finally {
       setIsLoading(false);
-      updateCacheInfo();
+      await updateCacheInfo();
     }
   };
 
-  const handleClearCache = () => {
-    bookingService.clearAllCache();
-    setLastAction('🗑️ Cleared entire cache');
-    updateCacheInfo();
+  const handleClearCache = async () => {
+    setIsLoading(true);
+    setLastAction('Clearing entire cache...');
+    try {
+      await bookingService.clearAllCache();
+      setLastAction('🗑️ Cleared entire cache');
+    } catch (error) {
+      setLastAction(`❌ Failed to clear cache: ${error}`);
+    } finally {
+      setIsLoading(false);
+      await updateCacheInfo();
+    }
   };
 
-  const handleClearExpired = () => {
-    bookingService.cleanExpiredCache();
-    setLastAction('🧹 Cleaned expired cache entries');
-    updateCacheInfo();
+  const handleClearExpired = async () => {
+    setIsLoading(true);
+    setLastAction('Cleaning expired cache entries...');
+    try {
+      await bookingService.cleanExpiredCache();
+      setLastAction('🧹 Cleaned expired cache entries');
+    } catch (error) {
+      setLastAction(`❌ Failed to clean expired cache: ${error}`);
+    } finally {
+      setIsLoading(false);
+      await updateCacheInfo();
+    }
   };
 
-  const handleClearSpecific = (date: string, beach: string) => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    bookingService.clearCacheForDate(tomorrow, beach);
-    setLastAction(`🗑️ Cleared cache for ${beach} on ${date}`);
-    updateCacheInfo();
+  const handleClearSpecific = async (date: string, beach: string) => {
+    setIsLoading(true);
+    setLastAction(`Clearing cache for ${beach} on ${date}...`);
+    try {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      await bookingService.clearCacheForDate(tomorrow, beach);
+      setLastAction(`🗑️ Cleared cache for ${beach} on ${date}`);
+    } catch (error) {
+      setLastAction(`❌ Failed to clear specific cache: ${error}`);
+    } finally {
+      setIsLoading(false);
+      await updateCacheInfo();
+    }
   };
 
   return (
@@ -57,7 +86,7 @@ export const CacheDemo = () => {
       <div className="bg-white rounded-lg shadow-lg p-6">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">🗄️ Booking Cache System Demo</h2>
         <p className="text-gray-600 mb-6">
-          Test the caching functionality for the surf lesson booking system. 
+          Test the Supabase-based caching functionality for the surf lesson booking system. 
           Cache entries expire after 24 hours and are automatically cleaned up.
         </p>
 
@@ -97,19 +126,22 @@ export const CacheDemo = () => {
         <div className="flex gap-4 mb-6">
           <button
             onClick={handleClearCache}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            disabled={isLoading}
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
           >
             🗑️ Clear All Cache
           </button>
           <button
             onClick={handleClearExpired}
-            className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+            disabled={isLoading}
+            className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:opacity-50"
           >
             🧹 Clean Expired
           </button>
           <button
-            onClick={updateCacheInfo}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            onClick={() => updateCacheInfo()}
+            disabled={isLoading}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 disabled:opacity-50"
           >
             🔄 Refresh Info
           </button>
@@ -185,7 +217,8 @@ export const CacheDemo = () => {
                         <td className="px-4 py-2 text-sm">
                           <button
                             onClick={() => handleClearSpecific(entry.date, entry.beach)}
-                            className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded hover:bg-red-200"
+                            disabled={isLoading}
+                            className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded hover:bg-red-200 disabled:opacity-50"
                           >
                             🗑️ Clear
                           </button>
@@ -198,6 +231,7 @@ export const CacheDemo = () => {
             </div>
           )}
 
+          {/* No entries message */}
           {cacheInfo.entries && cacheInfo.entries.length === 0 && (
             <div className="text-center py-8 text-gray-500">
               No cache entries found. Try fetching some data first!

@@ -269,11 +269,12 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   
   // Clear booking cache for this date and beach to ensure fresh availability data
   try {
-    const bookingDate = new Date(firstBooking.date);
-    bookingService.clearCacheForDate(bookingDate, firstBooking.beach);
-    console.log(`✅ Cache cleared for ${firstBooking.beach} on ${bookingDate.toISOString().split('T')[0]}`);
+    console.log(`🔄 Invalidating cache for booking date: ${firstBooking.date}`);
+    const bookingDate = new Date(firstBooking.date).toISOString().split('T')[0]; // YYYY-MM-DD format
+    await bookingService.invalidateCacheForBooking(bookingDate);
+    console.log(`✅ Cache invalidated for all beaches on ${bookingDate}`);
   } catch (error) {
-    console.error('Error clearing booking cache:', error);
+    console.error('❌ Error invalidating booking cache:', error);
     // Don't throw error here - cache clearing failure shouldn't break webhook
   }
 }

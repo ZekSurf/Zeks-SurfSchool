@@ -1,5 +1,5 @@
 import { BookingRequest, BookingResponse, BeachCoordinates } from '@/types/booking';
-import { bookingCache } from './bookingCache';
+import { supabaseCacheService } from './supabaseCacheService';
 
 class BookingService {
   private webhookUrl: string;
@@ -107,8 +107,8 @@ class BookingService {
         };
         
         // Store error details in cache for admin debugging
-        bookingCache.lastApiPayload = errorDetails;
-        bookingCache.lastError = `HTTP error! status: ${response.status}`;
+        supabaseCacheService.lastApiPayload = errorDetails;
+        supabaseCacheService.lastError = `HTTP error! status: ${response.status}`;
         
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -144,9 +144,9 @@ class BookingService {
         success: true
       };
       
-      bookingCache.lastApiPayload = successDetails;
-      bookingCache.lastApiResponse = data;
-      bookingCache.lastError = null;
+      supabaseCacheService.lastApiPayload = successDetails;
+      supabaseCacheService.lastApiResponse = data;
+      supabaseCacheService.lastError = null;
       
       console.log('Processed booking data:', data);
       return data;
@@ -163,8 +163,8 @@ class BookingService {
       };
       
       // Store error details in cache for admin debugging
-      bookingCache.lastApiPayload = errorDetails;
-      bookingCache.lastError = error instanceof Error ? error.message : 'Unknown error';
+      supabaseCacheService.lastApiPayload = errorDetails;
+      supabaseCacheService.lastError = error instanceof Error ? error.message : 'Unknown error';
       
       throw error;
     }
@@ -184,7 +184,7 @@ class BookingService {
     });
     
     try {
-      return await bookingCache.getBookingSlotsForDay(
+      return await supabaseCacheService.getBookingSlotsForDay(
         dateString,
         beach,
         forceRefresh,
@@ -199,30 +199,37 @@ class BookingService {
   /**
    * Clear cache for specific date and beach
    */
-  public clearCacheForDate(date: Date, beach?: string): void {
+  public async clearCacheForDate(date: Date, beach?: string): Promise<void> {
     const dateString = this.formatDateToISO(date);
-    bookingCache.clearCacheForDate(dateString, beach);
+    await supabaseCacheService.clearCacheForDate(dateString, beach);
   }
 
   /**
-   * Clear entire booking cache
+   * Clear all cached data
    */
-  public clearAllCache(): void {
-    bookingCache.clearCache();
+  public async clearAllCache(): Promise<void> {
+    await supabaseCacheService.clearCache();
   }
 
   /**
-   * Get cache information and statistics
+   * Get cache information for debugging
    */
-  public getCacheInfo() {
-    return bookingCache.getCacheInfo();
+  public async getCacheInfo() {
+    return await supabaseCacheService.getCacheInfo();
   }
 
   /**
    * Clean expired cache entries
    */
-  public cleanExpiredCache(): void {
-    bookingCache.cleanExpiredCache();
+  public async cleanExpiredCache(): Promise<void> {
+    await supabaseCacheService.cleanExpiredCache();
+  }
+
+  /**
+   * Invalidate cache for a specific booking date (called from webhook)
+   */
+  public async invalidateCacheForBooking(date: string): Promise<void> {
+    await supabaseCacheService.invalidateCacheForBooking(date);
   }
 }
 
