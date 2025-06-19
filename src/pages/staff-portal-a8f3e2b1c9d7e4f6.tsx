@@ -278,6 +278,30 @@ export default function StaffPortal() {
     }
   };
 
+  const handleDebugBookings = async () => {
+    try {
+      const response = await fetch('/api/debug/bookings');
+      const data = await response.json();
+      
+      console.log('Debug Bookings Data:', data);
+      
+      if (data.success) {
+        alert(`Debug Results:
+Total Bookings: ${data.debug.totalBookings}
+This Week: ${data.debug.currentWeekBookings}
+Status Counts: Confirmed=${data.debug.statusCounts.confirmed}, Completed=${data.debug.statusCounts.completed}, Cancelled=${data.debug.statusCounts.cancelled}
+Current Week Range: ${data.debug.currentWeekRange.start} to ${data.debug.currentWeekRange.end}
+
+Check browser console for full booking details.`);
+      } else {
+        alert(`Debug failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Debug error:', error);
+      alert('Debug failed: Network error');
+    }
+  };
+
   const getWeekRange = () => {
     const startOfWeek = new Date(selectedWeek);
     const day = startOfWeek.getDay();
@@ -468,6 +492,12 @@ export default function StaffPortal() {
                     🔄 Sync New Bookings
                   </>
                 )}
+              </button>
+              <button
+                onClick={handleDebugBookings}
+                className="bg-purple-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
+              >
+                🐛 Debug
               </button>
             </div>
 
