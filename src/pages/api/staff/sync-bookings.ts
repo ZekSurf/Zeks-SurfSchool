@@ -23,7 +23,7 @@ export default async function handler(
     }
 
     // Log the booking data for debugging
-    console.log('Booking sync requested:', JSON.stringify(bookingData, null, 2));
+    // SECURITY: Removed booking data logging - contains customer PII
     
     // In a real implementation, you would:
     // 1. Validate the booking data

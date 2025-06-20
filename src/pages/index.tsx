@@ -6,7 +6,7 @@ import { Blog } from '@/components/Home/Blog';
 import { BookingSection } from '@/components/Home/BookingSection';
 import { ContactSection } from '@/components/Contact/ContactSection';
 import { Layout } from '@/components/Layout/Layout';
-import { Certifications } from '@/components/Home/Certifications';
+
 
 export default function Home() {
   const scrollToBooking = () => {
@@ -43,9 +43,7 @@ export default function Home() {
           <Blog />
         </section>
 
-        <section id="certifications" className="scroll-mt-16 min-[427px]:scroll-mt-20 lg:scroll-mt-24">
-          <Certifications />
-        </section>
+
 
         <section id="contact" className="scroll-mt-16 min-[427px]:scroll-mt-20 lg:scroll-mt-24">
           <ContactSection />

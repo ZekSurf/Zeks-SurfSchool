@@ -22,7 +22,7 @@ export default function CheckoutPage() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   const handlePaymentSuccess = (paymentIntentId: string) => {
-    console.log('Payment successful:', paymentIntentId);
+    // SECURITY: Removed payment intent logging - contains payment data
     setPaymentSuccess(true);
     setPaymentError(null);
     

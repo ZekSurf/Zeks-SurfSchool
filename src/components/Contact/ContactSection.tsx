@@ -27,36 +27,15 @@ export const ContactSection = () => {
           <p className="text-gray-600">📍 Serving San Onofre, Doheny & T-Street Beaches, CA</p>
         </div>
         
-        <div className="max-w-[1200px] mx-auto mt-12 px-4 sm:px-6 lg:px-8">
-          <form className="space-y-8">
-            <div>
-              <input
-                type="text"
-                placeholder="Name"
-                className="w-full px-6 py-4 rounded-xl border border-gray-200 focus:outline-none focus:border-[#1DA9C7] font-poppins text-lg"
-              />
-            </div>
-            <div>
-              <input
-                type="email"
-                placeholder="Email"
-                className="w-full px-6 py-4 rounded-xl border border-gray-200 focus:outline-none focus:border-[#1DA9C7] font-poppins text-lg"
-              />
-            </div>
-            <div>
-              <textarea
-                placeholder="Message"
-                rows={6}
-                className="w-full px-6 py-4 rounded-xl border border-gray-200 focus:outline-none focus:border-[#1DA9C7] font-poppins resize-none text-lg"
-              ></textarea>
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-[#1DA9C7] text-white px-8 py-4 rounded-xl font-poppins font-medium hover:bg-[#1897B2] transition-colors text-lg"
+        {/* Call to Action */}
+        <div className="text-center mt-8">
+          <p className="text-xl text-gray-700 mb-6">Ready to catch your first wave?</p>
+          <a 
+            href="/#booking" 
+            className="inline-block bg-[#1DA9C7] text-white px-8 py-4 rounded-xl font-poppins font-medium hover:bg-[#1897B2] transition-colors text-lg"
             >
-              Send Message
-            </button>
-          </form>
+            Book Your Lesson Now
+          </a>
         </div>
       </div>
     </section>

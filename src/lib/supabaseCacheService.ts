@@ -32,7 +32,7 @@ class SupabaseCacheService {
    */
   private getCacheKey(date: string, beach: string): string {
     const cacheKey = `${date}_${beach.toLowerCase().replace(/\s+/g, '_')}`;
-    console.log(`🔑 Generated cache key: "${cacheKey}" for date: ${date}, beach: ${beach}`);
+    // SECURITY: Removed cache key logging - may contain system info
     return cacheKey;
   }
 
@@ -45,7 +45,7 @@ class SupabaseCacheService {
     const isValid = currentTime < expirationTime;
     
     const ageHours = (currentTime.getTime() - new Date(entry.created_at).getTime()) / (1000 * 60 * 60);
-    console.log(`⏰ Cache entry for ${entry.beach} on ${entry.date} is ${isValid ? 'VALID' : 'EXPIRED'} (age: ${ageHours.toFixed(1)} hours)`);
+    // SECURITY: Removed cache status logging - may contain system information
     
     return isValid;
   }
@@ -64,15 +64,15 @@ class SupabaseCacheService {
         .single();
 
       if (error || !entry) {
-        console.log(`❌ Cache MISS: No entry found for key "${cacheKey}"`);
+        // SECURITY: Removed cache miss logging
         return null;
       }
 
       if (this.isCacheValid(entry)) {
-        console.log(`✅ Cache HIT: Valid data found for key "${cacheKey}"`);
+        // SECURITY: Removed cache hit logging
         return entry.data as BookingResponse;
       } else {
-        console.log(`🗑️ Cache EXPIRED: Removing expired entry for key "${cacheKey}"`);
+        // SECURITY: Removed cache expiration logging
         await this.removeCacheEntry(date, beach);
         return null;
       }
@@ -110,7 +110,7 @@ class SupabaseCacheService {
         return;
       }
       
-      console.log(`💾 Cache STORED: Data cached for key "${cacheKey}" with ${data.slots?.length || 0} slots`);
+      // SECURITY: Removed cache operation logging - may expose system data
     } catch (error) {
       console.error('❌ Error storing cache data:', error);
       this.lastError = error;
@@ -135,7 +135,7 @@ class SupabaseCacheService {
         return;
       }
       
-      console.log(`🗑️ Cache REMOVED: Entry deleted for key "${cacheKey}"`);
+      // SECURITY: Removed cache operation logging
     } catch (error) {
       console.error('❌ Error removing cache entry:', error);
       this.lastError = error;
@@ -151,7 +151,7 @@ class SupabaseCacheService {
     forceRefresh: boolean = false,
     fetchFunction: (beach: string, date: Date) => Promise<BookingResponse>
   ): Promise<BookingResponse> {
-    console.log(`🔍 Requesting booking slots for ${beach} on ${date} (forceRefresh: ${forceRefresh})`);
+    // SECURITY: Removed booking request logging - may contain sensitive data
 
     // Skip cache if force refresh is requested
     if (forceRefresh) {
@@ -165,11 +165,11 @@ class SupabaseCacheService {
     }
 
     // Cache miss or force refresh - fetch from API
-    console.log(`🌐 Fetching fresh data from API for ${beach} on ${date}`);
-    console.log(`🔍 DEBUG: Cache requesting slots for beach="${beach}", date="${date}"`);
+          // SECURITY: Removed API fetch logging
+          // SECURITY: Removed debug booking request logging
     try {
       const dateObj = new Date(date);
-      console.log(`🔍 DEBUG: Converted date string "${date}" to Date object:`, dateObj);
+      // SECURITY: Removed date conversion debug logging
       
       const freshData = await fetchFunction(beach, dateObj);
       this.lastApiResponse = freshData;
@@ -201,7 +201,7 @@ class SupabaseCacheService {
         return;
       }
 
-      console.log('🗑️ Entire cache cleared from database');
+      // SECURITY: Removed cache clear logging
     } catch (error) {
       console.error('❌ Error clearing cache:', error);
       this.lastError = error;
@@ -212,7 +212,7 @@ class SupabaseCacheService {
    * Clear cache for specific date/beach or all beaches for a date
    */
   public async clearCacheForDate(date: string, beach?: string): Promise<void> {
-    console.log(`🗑️ Clearing cache for date: ${date}${beach ? `, beach: ${beach}` : ' (all beaches)'}`);
+    // SECURITY: Removed cache clearing logging
     
     try {
       let query = supabase.from('time_slots_cache').delete();
@@ -234,7 +234,7 @@ class SupabaseCacheService {
         return;
       }
 
-      console.log(`🗑️ Removed ${count || 0} cache entries for date ${date}`);
+      // SECURITY: Removed cache removal logging
     } catch (error) {
       console.error('❌ Error clearing cache for date:', error);
       this.lastError = error;
@@ -290,7 +290,7 @@ class SupabaseCacheService {
         entries: entryDetails
       };
 
-      console.log(`📊 Cache Info: ${info.totalEntries} total, ${info.validEntries} valid, ${info.expiredEntries} expired`);
+      // SECURITY: Removed cache info logging
       return info;
     } catch (error) {
       console.error('❌ Error getting cache info:', error);
@@ -308,7 +308,7 @@ class SupabaseCacheService {
    * Remove all expired entries from cache
    */
   public async cleanExpiredCache(): Promise<void> {
-    console.log('🧹 Starting expired cache cleanup...');
+    // SECURITY: Removed cache cleanup logging
     
     try {
       const { error, count } = await supabase
@@ -323,9 +323,9 @@ class SupabaseCacheService {
       }
 
       if (count && count > 0) {
-        console.log(`🧹 Cleanup complete: Removed ${count} expired entries`);
+        // SECURITY: Removed cleanup completion logging
       } else {
-        console.log('🧹 Cleanup complete: No expired entries found');
+        // SECURITY: Removed cleanup completion logging
       }
     } catch (error) {
       console.error('❌ Error cleaning expired cache:', error);
@@ -338,7 +338,7 @@ class SupabaseCacheService {
    * This is called from the Stripe webhook to invalidate cache
    */
   public async invalidateCacheForBooking(date: string): Promise<void> {
-    console.log(`🔄 Invalidating cache for booking date: ${date}`);
+    // SECURITY: Removed cache invalidation logging
     await this.clearCacheForDate(date);
   }
 }

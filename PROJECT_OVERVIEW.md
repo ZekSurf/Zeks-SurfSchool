@@ -10,6 +10,9 @@
 - Private and group lesson options
 - E-commerce cart system with progressive discounts
 - Educational blog content about surfing
+- Staff portal for booking management
+- Review collection system
+- Push notification system for staff alerts
 
 ---
 
@@ -29,7 +32,7 @@
 
 ### State Management
 - **React Context API** - Cart state management
-- **Local Storage** - Session persistence for chat
+- **Local Storage** - Session persistence for chat and reviews
 
 ### Backend Integration
 - **Supabase 2.50.0** - Database backend for booking and staff management
@@ -40,6 +43,7 @@
 - **clsx & tailwind-merge** - Conditional styling utilities
 - **UUID 9.0.0** - Unique identifier generation
 - **Micro 10.0.1** - Lightweight webhook processing
+- **@vercel/analytics 1.5.0** - Analytics integration
 
 ---
 
@@ -51,6 +55,8 @@ Surf Site/
 │   ├── images/                  # General images (surf photos, social icons)
 │   ├── beaches/                 # Beach-specific images
 │   ├── zeks-logo.png           # Brand logo assets
+│   ├── manifest.json           # PWA manifest
+│   ├── sw.js                   # Service worker for push notifications
 │   └── favicon.ico             # Site favicon
 ├── src/
 │   ├── pages/                   # Next.js pages (routing)
@@ -60,9 +66,33 @@ Surf Site/
 │   │   ├── chat.tsx            # Full-page chat interface
 │   │   ├── confirmation.tsx    # Booking confirmation
 │   │   ├── booking-details.tsx # Booking details page
-│   │   ├── testing.tsx         # Development testing page
+│   │   ├── review.tsx          # Review collection page
+│   │   ├── cache-demo.tsx      # Cache testing page
+│   │   ├── privacy-policy.tsx  # Privacy policy
+│   │   ├── terms-and-conditions.tsx # Terms and conditions
+│   │   ├── refund-cancellation-policy.tsx # Refund policy
+│   │   ├── admin-debug-portal-*.tsx # Admin debug portal
+│   │   ├── staff-portal-*.tsx  # Staff portal with calendar
 │   │   ├── blog/
 │   │   │   └── [id].tsx        # Dynamic blog post pages
+│   │   ├── api/                # API routes
+│   │   │   ├── create-payment-intent.ts # Stripe payment creation
+│   │   │   ├── test-supabase.ts # Database testing
+│   │   │   ├── debug/          # Debug endpoints
+│   │   │   │   ├── bookings.ts # Debug booking data
+│   │   │   │   ├── push-config.ts # Push notification config
+│   │   │   │   ├── test-cache.ts # Cache testing
+│   │   │   │   └── test-push.ts # Push notification testing
+│   │   │   ├── push/           # Push notification API
+│   │   │   │   ├── send-notification.ts
+│   │   │   │   ├── subscribe.ts
+│   │   │   │   └── unsubscribe.ts
+│   │   │   ├── staff/          # Staff management API
+│   │   │   │   ├── get-pending-bookings.ts
+│   │   │   │   ├── pin-management.ts
+│   │   │   │   └── sync-bookings.ts
+│   │   │   └── webhooks/
+│   │   │       └── stripe.ts   # Stripe webhook handler
 │   │   └── _app.tsx            # App configuration
 │   ├── components/              # Reusable UI components
 │   │   ├── Layout/             # Site layout components
@@ -76,31 +106,55 @@ Surf Site/
 │   │   │   ├── Blog.tsx        # Blog preview section
 │   │   │   ├── BookingSection.tsx # Main booking interface
 │   │   │   ├── BeachDetailsModal.tsx # Beach information modal
+│   │   │   ├── Certifications.tsx # Certifications display
 │   │   │   └── WetsuitSizeGuide.tsx # Size guide modal
 │   │   ├── Chat/               # AI chat system components
 │   │   │   ├── ChatWidget.tsx  # Embedded chat widget
 │   │   │   ├── FullPageChat.tsx # Full-screen chat interface
 │   │   │   ├── ChatInput.tsx   # Message input component
 │   │   │   ├── ChatMessage.tsx # Individual message display
-│   │   │   └── SurfbotButton.tsx # Chat trigger button
+│   │   │   ├── SurfbotButton.tsx # Chat trigger button
+│   │   │   └── SurfBotThinking.tsx # Thinking indicator
 │   │   ├── Cart/               # Shopping cart components
 │   │   │   └── CartIcon.tsx    # Cart icon with item count
 │   │   ├── Booking/            # Booking related components
-│   │   │   └── BookingDetails.tsx # Booking details display
+│   │   │   ├── BookingDetails.tsx # Booking details display
+│   │   │   └── WaiverAgreement.tsx # Waiver agreement
 │   │   ├── Contact/            # Contact section components
 │   │   │   └── ContactSection.tsx # Contact information
+│   │   ├── Staff/              # Staff portal components
+│   │   │   ├── BookingDetailsModal.tsx # Staff booking details
+│   │   │   └── WeeklyCalendar.tsx # Weekly calendar view
+│   │   ├── Payment/            # Payment components
+│   │   │   └── StripePaymentForm.tsx # Stripe payment form
 │   │   ├── SurfData/           # Surf condition components
-│   │   └── ui/                 # Generic UI components
+│   │   │   └── SurfDataTester.tsx # Surf data testing
+│   │   ├── ui/                 # Generic UI components
+│   │   │   └── Button.tsx      # Button component
+│   │   └── CacheDemo.tsx       # Cache demonstration component
 │   ├── context/                # React Context providers
 │   │   └── CartContext.tsx     # Shopping cart state management
 │   ├── data/                   # Static data and content
 │   │   └── blogPosts.ts        # Blog content data
 │   ├── lib/                    # Utility libraries and services
-│   │   └── chatService.ts      # AI chat service integration
+│   │   ├── bookingCache.ts     # Booking cache service
+│   │   ├── bookingService.ts   # Booking API service
+│   │   ├── chatService.ts      # AI chat service integration
+│   │   ├── pushNotificationService.ts # Push notification service
+│   │   ├── reviewService.ts    # Review collection service
+│   │   ├── staffService.ts     # Staff management service
+│   │   ├── stripe.ts           # Stripe integration
+│   │   ├── supabase.ts         # Supabase client and schemas
+│   │   ├── supabaseCacheService.ts # Supabase cache service
+│   │   └── supabaseStaffService.ts # Supabase staff service
 │   ├── types/                  # TypeScript type definitions
-│   │   └── chat.ts             # Chat-related type definitions
-│   ├── utils/                  # Utility functions
+│   │   ├── booking.ts          # Booking-related types
+│   │   ├── chat.ts             # Chat-related type definitions
+│   │   ├── gtag.d.ts           # Google Analytics types
+│   │   └── review.ts           # Review system types
 │   ├── assets/                 # Additional assets
+│   │   └── images/             # Asset images
+│   ├── utils/                  # Utility functions
 │   └── styles/                 # Global styles
 │       └── globals.css         # Global CSS with custom properties
 ├── tailwind.config.js          # Tailwind CSS configuration
@@ -150,6 +204,7 @@ The application uses a surf-themed color palette defined in both Tailwind config
 - **Dynamic Pricing**: Server-side pricing based on conditions and availability
 - **Weather Integration**: Real-time conditions display from API
 - **Availability Tracking**: Live open spots and booking status
+- **Cache System**: Advanced caching for booking availability
 
 ### 2. AI-Powered Chat System
 **Location**: `src/components/Chat/` & `src/lib/chatService.ts`
@@ -189,187 +244,116 @@ The application uses a surf-themed color palette defined in both Tailwind config
 ### 5. Staff Portal & Management System
 **Location**: `src/pages/staff-portal-*.tsx` & `src/lib/supabaseStaffService.ts`
 - **Secure Access**: PIN-protected staff portal with obscure URL
-- **Weekly Calendar**: Complete booking management interface
+- **Weekly Calendar**: Complete booking management interface with `WeeklyCalendar.tsx`
 - **Real-time Sync**: Automatic booking synchronization with payments
 - **Status Management**: Update lesson status (confirmed/completed/cancelled)
 - **Customer Contact**: Direct access to customer phone/email
 - **Database Integration**: Supabase backend for persistent data
+- **Booking Details Modal**: Enhanced booking information display
 
 ### 6. Push Notification System
 **Location**: `src/lib/pushNotificationService.ts` & `src/pages/api/push/`
 - **Staff Alerts**: Real-time notifications for new bookings
-- **iOS PWA Support**: Add-to-home-screen functionality
-- **Subscription Management**: Device registration and cleanup
-- **VAPID Authentication**: Secure push notification delivery
-- **Service Worker**: Background notification handling
+- **Service Worker**: PWA integration with `sw.js`
+- **Subscription Management**: Device subscription handling
+- **Debug Tools**: Comprehensive debugging and testing tools
 
 ### 7. Review Collection System
 **Location**: `src/pages/review.tsx` & `src/lib/reviewService.ts`
-- **URL-based Forms**: Pre-filled review forms from email links
-- **Multi-rating System**: Overall, instructor, equipment, experience ratings
-- **Admin Moderation**: Review approval workflow in admin panel
-- **Data Export**: JSON export for review management
-- **Duplicate Prevention**: Payment ID-based duplicate checking
+- **URL-based Form**: Pre-filled review forms via URL parameters
+- **Star Ratings**: Multiple rating categories (overall, instructor, equipment, experience)
+- **Data Validation**: Prevents duplicate submissions
+- **Admin Management**: Review moderation through admin portal
 
 ### 8. Admin Debug Portal
 **Location**: `src/pages/admin-debug-portal-*.tsx`
-- **System Monitoring**: Cache, API, and storage inspection
-- **Review Management**: Approve, reject, and manage customer reviews
-- **Staff Management**: PIN creation and staff portal administration
-- **Data Export**: Complete system data export capabilities
-- **Performance Metrics**: Real-time system statistics
+- **System Monitoring**: Cache statistics and system status
+- **Data Management**: Export, clear, and inspect system data
+- **API Testing**: Debug endpoints for testing integrations
+- **Security**: Password-protected with brute force protection
 
-### 9. Payment Integration
-**Location**: `src/pages/api/webhooks/stripe.ts` & Stripe APIs
-- **Stripe Integration**: Secure payment processing with webhooks
-- **Automatic Booking**: Payment completion triggers booking creation
-- **Metadata Storage**: Complete booking details in payment metadata
-- **N8N Webhooks**: Integration with external automation systems
-- **Tax Calculation**: Automatic tax computation (8% rate)
-
-### 10. Responsive Design
-- **Mobile-First**: Optimized for all screen sizes
-- **Breakpoint System**: Custom responsive utilities
-- **Touch-Friendly**: Mobile-optimized interactions
-- **Performance**: Optimized images and lazy loading
+### 9. Advanced Caching System
+**Location**: `src/lib/bookingCache.ts` & `src/lib/supabaseCacheService.ts`
+- **Multi-layer Caching**: Browser storage + Supabase database
+- **Cache Invalidation**: Smart cache expiration strategies
+- **Performance Optimization**: Reduced API calls and faster loading
 
 ---
 
-## 🚀 Technical Implementation Details
+## 🔧 Development Tools
 
-### Next.js Configuration
-```javascript
-// next.config.js
-{
-  reactStrictMode: true,
-  swcMinify: true,
-  images: { unoptimized: true }
-}
-```
+### Available Scripts
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
 
-### State Management Architecture
-- **Cart Context**: Centralized shopping cart state with automatic discount calculation
-- **Local Storage**: Chat session persistence and user preferences
-- **Component State**: Local UI state management with React hooks
+### Environment Configuration
+The application requires various environment variables for:
+- Stripe payment processing
+- Supabase database connection
+- Push notification VAPID keys
+- Admin passwords
+- Webhook URLs
 
-### API Integration
-- **N8N Webhook**: External AI chat service integration
-- **Booking Webhook**: Real-time slot availability API
-- **Environment Variables**: Secure API endpoint configuration
-- **Error Handling**: Robust error management with fallback responses
-- **Coordinate Mapping**: Beach location coordinates for API requests
-
-### Performance Optimizations
-- **Image Optimization**: Next.js Image component with responsive sizing
-- **Code Splitting**: Automatic route-based code splitting
-- **CSS Optimization**: Tailwind CSS purging and minification
-- **Bundle Analysis**: Optimized build output
+### Testing & Debugging
+- Cache demo page for testing cache functionality
+- Debug API endpoints for system monitoring
+- Comprehensive logging and error handling
+- Push notification testing tools
 
 ---
 
-## 🎯 User Experience Flow
+## 📱 Progressive Web App (PWA)
 
-### 1. Landing Experience
-1. **Hero Section**: Compelling call-to-action with surf imagery
-2. **Chat Widget**: Immediate access to AI assistance
-3. **Quick Booking**: Streamlined lesson booking process
-
-### 2. Booking Journey
-1. **Beach Selection**: Choose from featured surf locations
-2. **Schedule Planning**: Pick date, time, and lesson type
-3. **Cart Management**: Add multiple lessons with automatic discounts
-4. **Checkout Process**: Complete booking with contact information
-5. **Confirmation**: Booking details and next steps
-
-### 3. Learning Resources
-1. **Blog Discovery**: Featured blog posts on homepage
-2. **Educational Content**: Comprehensive surfing guides
-3. **Safety Information**: Ocean safety and surf etiquette
-4. **Local Knowledge**: Insider tips for SoCal surf spots
+### PWA Features
+- **Service Worker**: Background sync and offline support
+- **Manifest**: App installation on mobile devices
+- **Push Notifications**: Native notification support
+- **Responsive Design**: Mobile-first approach
 
 ---
 
-## 🔧 Development Workflow
+## 🔒 Security Features
 
-### Environment Setup
-```bash
-npm install          # Install dependencies
-npm run dev         # Start development server
-npm run build       # Build for production
-npm run start       # Start production server
-npm run lint        # Run ESLint
-```
+### Authentication & Authorization
+- PIN-protected staff portal
+- Admin password protection with lockout
+- Obscure URLs for sensitive areas
+- Session-based authentication
 
-### Development Standards
-- **TypeScript**: Strict type checking enabled
-- **ESLint**: Next.js recommended configuration
-- **Code Organization**: Feature-based component structure
-- **Responsive Development**: Mobile-first approach
-
-### Asset Management
-- **Public Assets**: Static files in `/public` directory
-- **Image Organization**: Categorized by type (beaches, general images)
-- **Icon Libraries**: Lucide React and React Icons for consistency
+### Data Protection
+- Supabase Row Level Security (RLS)
+- Secure environment variable handling
+- Webhook signature verification
+- Input validation and sanitization
 
 ---
 
-## 🌊 Business Logic
+## 🚀 Performance Optimizations
 
-### Pricing Strategy
-- **Base Pricing**: Dynamic pricing per lesson type
-- **Volume Discounts**: Encourages multiple bookings
-- **Private Lesson Premium**: Higher pricing for personalized instruction
+### Caching Strategy
+- Multi-tier caching system
+- Browser localStorage for quick access
+- Database caching for persistence
+- Automatic cache invalidation
 
-### Content Strategy
-- **Educational Focus**: Builds trust and authority
-- **Local Expertise**: Showcases knowledge of SoCal surf scene
-- **Safety Emphasis**: Responsible surfing education
-
-### User Engagement
-- **AI Chat Assistant**: 24/7 availability for questions
-- **Rich Content**: Multiple content formats for different learning styles
-- **Social Proof**: Authentic imagery and local knowledge
+### Code Optimization
+- TypeScript for type safety
+- Component-based architecture
+- Lazy loading and code splitting
+- Optimized image delivery
 
 ---
 
-## 🚦 Current Status & Notes
+## 📊 Analytics & Monitoring
 
-### Completed Features
-✅ Responsive design system
-✅ Complete booking workflow
-✅ AI chat integration
-✅ Shopping cart with discounts
-✅ Educational blog system
-✅ Beach information system
-✅ Staff portal with PIN authentication
-✅ Push notification system for staff alerts
-✅ Review collection and management system
-✅ Admin debug portal with comprehensive tools
-✅ Stripe payment integration with webhooks
-✅ Supabase database backend
-✅ PWA functionality for iOS devices
-
-### Technical Considerations
-- **Image Optimization**: Some large image files could be optimized
-- **SEO**: Meta tags implemented, could be enhanced
-- **Accessibility**: Basic accessibility, could be improved
-- **Testing**: Manual testing implemented, automated tests could be added
-
-### Deployment Ready
-The application is production-ready with:
-- Optimized build configuration
-- Environment variable support
-- Responsive design across all devices
-- Error handling and fallbacks
+### Integrated Analytics
+- Vercel Analytics for performance monitoring
+- Custom event tracking
+- Error logging and reporting
+- System health monitoring
 
 ---
 
-## 📞 Contact & Business Information
-
-**Zek's Surf School** - Learn to Surf with Confidence
-- Specializes in beginner-friendly surf instruction
-- Multiple Southern California beach locations
-- Personal and group lesson options
-- Equipment rental and safety education
-
-This project represents a complete digital solution for a modern surf school business, combining e-commerce functionality, educational content, and AI-powered customer service in a beautifully designed, responsive web application. 
+This comprehensive surf school application combines modern web technologies with practical business needs to create a full-featured booking and management system for surf instruction businesses. 

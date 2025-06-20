@@ -38,16 +38,25 @@ class ChatService {
     };
 
     try {
-      console.log('Sending to chat webhook:', {
-        url: this.webhookUrl,
-        payload
-      });
+      // SECURITY: Removed webhook URL and payload logging - exposes system configuration and user data
+
+      // Create basic auth header - try both client and server env vars
+      const username = process.env.NEXT_PUBLIC_N8N_WEBHOOK_USERNAME || process.env.N8N_WEBHOOK_USERNAME;
+      const password = process.env.NEXT_PUBLIC_N8N_WEBHOOK_PASSWORD || process.env.N8N_WEBHOOK_PASSWORD;
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add basic auth if credentials are available
+      if (username && password) {
+        const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
+        headers['Authorization'] = `Basic ${basicAuth}`;
+      }
 
       const response = await fetch(this.webhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -58,7 +67,7 @@ class ChatService {
       const data = await response.json();
       
       // Debug logging to see what the webhook is returning
-      console.log('Chat webhook response:', data);
+      // SECURITY: Removed webhook response logging - may contain sensitive data
       
       // Handle array response format: [{"output": "response text"}]
       let aiResponse: string | undefined;

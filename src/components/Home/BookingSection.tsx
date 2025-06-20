@@ -297,11 +297,7 @@ export const BookingSection = () => {
       return;
     }
 
-    console.log(`🔍 DEBUG: handleDateSelect called with:`, {
-      selectedBeach,
-      date: date.toISOString(),
-      dateString: date.toISOString().split('T')[0]
-    });
+    // SECURITY: Removed debug logging - may contain sensitive booking data
 
     setIsLoadingTimeSlots(true);
     setSelectedDate(date);
@@ -309,7 +305,7 @@ export const BookingSection = () => {
     setAvailableSlots([]);
 
     try {
-      console.log(`🔍 DEBUG: About to call fetchAvailableSlots with beach="${selectedBeach}", date=`, date);
+      // SECURITY: Removed API call debug logging
       const response = await bookingService.fetchAvailableSlots(selectedBeach, date);
       
       // Validate the response structure

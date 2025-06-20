@@ -13,7 +13,7 @@ class StaffService {
       bookings.push(booking);
       
       localStorage.setItem(StaffService.BOOKINGS_KEY, JSON.stringify(bookings));
-      console.log('✅ Booking saved:', booking.confirmationNumber);
+      // SECURITY: Removed confirmation number logging - contains booking data
     } catch (error) {
       console.error('Error saving booking:', error);
     }
@@ -91,7 +91,7 @@ class StaffService {
       bookings[bookingIndex].status = status;
       localStorage.setItem(StaffService.BOOKINGS_KEY, JSON.stringify(bookings));
       
-      console.log(`✅ Booking ${bookingId} status updated to ${status}`);
+      // SECURITY: Removed booking update logging - contains booking data
       return true;
     } catch (error) {
       console.error('Error updating booking status:', error);

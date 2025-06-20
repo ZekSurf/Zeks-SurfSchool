@@ -73,7 +73,7 @@ const removeInvalidSubscription = async (endpoint: string) => {
     if (error) {
       console.error('Error removing invalid subscription:', error);
     } else {
-      console.log('🧹 Removed invalid subscription:', endpoint.substring(0, 50) + '...');
+      // SECURITY: Removed invalid subscription logging - contains endpoint data
     }
   } catch (error) {
     console.error('Error removing invalid subscription:', error);

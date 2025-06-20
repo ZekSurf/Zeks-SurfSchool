@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { bookingService } from '@/lib/bookingService';
 import { bookingCache } from '@/lib/bookingCache';
@@ -8,6 +8,11 @@ import { supabaseStaffService } from '@/lib/supabaseStaffService';
 import { ReviewSubmission, ReviewStats } from '@/types/review';
 import { StaffPinConfig, CompletedBooking } from '@/types/booking';
 import { StaffPinRow } from '@/lib/supabase';
+import { supabaseCacheService } from '../lib/supabaseCacheService';
+
+// SECURITY: This should now come from server-side env variable in API calls
+// We'll validate the password server-side to avoid exposing it client-side
+const ADMIN_AUTH_ENDPOINT = '/api/admin/verify-auth';
 
 interface DebugInfo {
   environment: string;
@@ -24,11 +29,44 @@ interface DebugInfo {
   reviewInfo: any;
 }
 
+interface SystemInfo {
+  userAgent: string;
+  timestamp: string;
+  url: string;
+  environment: string;
+  screenResolution: string;
+  colorDepth: number;
+  timezone: string;
+  language: string;
+  cookiesEnabled: boolean;
+  localStorage: any;
+  sessionStorage: any;
+  cacheInfo: any;
+  chatInfo: {
+    webhookUrl: string;
+    isConfigured: boolean;
+  };
+  apiPayload: {
+    timestamp: string;
+    payload: any;
+    response: {
+      status: number;
+      statusText: string;
+      headers: Record<string, string>;
+      rawData: any;
+      processedData: any;
+    };
+  };
+  apiResponse: any;
+  lastError: any;
+}
+
 export default function AdminDebugPortal() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
+  const [adminKey, setAdminKey] = useState('');
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [lastAction, setLastAction] = useState<string>('');
@@ -56,14 +94,15 @@ export default function AdminDebugPortal() {
   const [editingStaff, setEditingStaff] = useState<StaffPinRow | null>(null);
   const [bookingStats, setBookingStats] = useState({ total: 0, confirmed: 0, completed: 0, cancelled: 0 });
 
-  // The admin password - use environment variable or fallback to default
-  const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_DEBUG_PASSWORD || 'ZeksSurf2024!Admin#Debug';
+  // SECURITY: Password validation is now handled server-side via API
 
   useEffect(() => {
     // Check if already authenticated in session
     const authStatus = sessionStorage.getItem('admin_debug_auth');
-    if (authStatus === 'authenticated') {
+    const storedKey = sessionStorage.getItem('admin_debug_key');
+    if (authStatus === 'authenticated' && storedKey) {
       setIsAuthenticated(true);
+      setAdminKey(storedKey);
       loadDebugInfo();
       loadReviews();
       loadStaffConfig();
@@ -76,7 +115,7 @@ export default function AdminDebugPortal() {
     }
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (isLocked) {
@@ -84,25 +123,43 @@ export default function AdminDebugPortal() {
       return;
     }
 
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      sessionStorage.setItem('admin_debug_auth', 'authenticated');
-      setLoginAttempts(0);
-      localStorage.removeItem('admin_debug_lockout');
-      loadDebugInfo();
-      loadReviews();
-      loadStaffConfig();
-    } else {
-      const newAttempts = loginAttempts + 1;
-      setLoginAttempts(newAttempts);
-      
-      if (newAttempts >= 3) {
-        setIsLocked(true);
-        localStorage.setItem('admin_debug_lockout', Date.now().toString());
-        alert('Too many failed attempts. Access locked for 30 minutes.');
+    try {
+      const response = await fetch('/api/admin/verify-auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setIsAuthenticated(true);
+        setAdminKey(password); // Store the password for API calls
+        sessionStorage.setItem('admin_debug_auth', 'authenticated');
+        sessionStorage.setItem('admin_debug_key', password); // Store encrypted in real app
+        setLoginAttempts(0);
+        localStorage.removeItem('admin_debug_lockout');
+        loadDebugInfo();
+        loadReviews();
+        loadStaffConfig();
       } else {
-        alert(`Invalid password. ${3 - newAttempts} attempts remaining.`);
+        const newAttempts = loginAttempts + 1;
+        setLoginAttempts(newAttempts);
+        
+        if (newAttempts >= 3) {
+          setIsLocked(true);
+          localStorage.setItem('admin_debug_lockout', Date.now().toString());
+          alert('Too many failed attempts. Access locked for 30 minutes.');
+        } else {
+          alert(`Invalid password. ${3 - newAttempts} attempts remaining.`);
+        }
+        setPassword('');
       }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      alert('Authentication failed. Please try again.');
       setPassword('');
     }
   };
@@ -110,7 +167,9 @@ export default function AdminDebugPortal() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     sessionStorage.removeItem('admin_debug_auth');
+    sessionStorage.removeItem('admin_debug_key');
     setPassword('');
+    setAdminKey('');
     setDebugInfo(null);
   };
 
@@ -337,7 +396,7 @@ export default function AdminDebugPortal() {
   // Staff management functions (server-side)
   const loadStaffConfig = async () => {
     try {
-      const result = await supabaseStaffService.getAllStaffPins(ADMIN_PASSWORD);
+      const result = await supabaseStaffService.getAllStaffPins(adminKey);
       if (result.success && result.staff.length > 0) {
         setAllStaff(result.staff);
         // Maintain backward compatibility - create legacy config from new data
@@ -378,7 +437,7 @@ export default function AdminDebugPortal() {
         phone: newStaffData.phone || undefined,
         email: newStaffData.email || undefined,
         notes: newStaffData.notes || undefined
-      }, ADMIN_PASSWORD);
+      }, adminKey);
       
       if (result.success) {
         setNewStaffData({
@@ -402,7 +461,7 @@ export default function AdminDebugPortal() {
 
   const handleUpdateStaff = async (staffId: string, updates: Partial<StaffPinRow>) => {
     try {
-      const result = await supabaseStaffService.updateStaffPin(staffId, updates, ADMIN_PASSWORD);
+      const result = await supabaseStaffService.updateStaffPin(staffId, updates, adminKey);
       if (result.success) {
         await loadStaffConfig();
         setEditingStaff(null);
@@ -421,7 +480,7 @@ export default function AdminDebugPortal() {
     }
 
     try {
-      const result = await supabaseStaffService.deleteStaffPin(staffId, ADMIN_PASSWORD);
+      const result = await supabaseStaffService.deleteStaffPin(staffId, adminKey);
       if (result.success) {
         await loadStaffConfig();
         setLastAction('Staff member deleted');

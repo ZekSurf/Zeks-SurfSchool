@@ -62,7 +62,7 @@ const CheckoutForm: React.FC<PaymentFormProps> = ({
         console.error('Payment failed:', error);
         onError(error.message || 'Payment failed. Please try again.');
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-        console.log('Payment succeeded:', paymentIntent);
+        // SECURITY: Removed payment intent logging - contains payment data
         onSuccess(paymentIntent.id);
       }
     } catch (err) {

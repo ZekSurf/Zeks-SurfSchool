@@ -49,7 +49,7 @@ export default function StaffPortal() {
           const { hasValidSession, sessionData } = event.data;
           
           if (hasValidSession && sessionData) {
-            console.log('🔐 Valid persistent session found, auto-login enabled');
+            // SECURITY: Removed session logging - contains authentication data
             // Automatically authenticate without requiring PIN entry
             setIsAuthenticated(true);
             sessionStorage.setItem('staff_portal_auth', 'authenticated');
@@ -63,7 +63,7 @@ export default function StaffPortal() {
               });
             }
           } else {
-            console.log('🔐 No valid persistent session found');
+            // SECURITY: Removed session logging - contains authentication data
           }
         };
 
@@ -99,7 +99,7 @@ export default function StaffPortal() {
 
   const handleServiceWorkerMessage = (event: MessageEvent) => {
     if (event.data && event.data.type === 'NEW_BOOKING_NOTIFICATION') {
-      console.log('📱 New booking notification received in staff portal:', event.data.booking);
+              // SECURITY: Removed booking notification logging - contains customer data
       
       // Auto-refresh the calendar to show new booking
       setRefreshKey(prev => prev + 1);
@@ -284,7 +284,7 @@ export default function StaffPortal() {
       const response = await fetch('/api/debug/bookings');
       const data = await response.json();
       
-      console.log('Debug Bookings Data:', data);
+      // SECURITY: Removed debug bookings logging - contains customer data
       
       if (data.success) {
         alert(`Debug Results:
@@ -524,49 +524,49 @@ Check browser console for full booking details.`);
               </div>
               
               <div className="p-3 md:p-4 space-y-4">
-                {/* Push Notification Controls */}
+          {/* Push Notification Controls */}
                 <div className="border border-gray-100 rounded-lg p-3">
                   <div className="flex flex-col space-y-3">
-                    <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3">
                       <span className="text-xl">📱</span>
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-800 text-sm">Push Notifications</h4>
                         <p className="text-xs text-gray-600">
-                          {notificationStatus === 'checking' && 'Checking status...'}
-                          {notificationStatus === 'enabled' && '✅ Enabled - You\'ll receive alerts for new bookings'}
-                          {notificationStatus === 'disabled' && '❌ Disabled - Enable to get booking alerts'}
-                          {notificationStatus === 'unsupported' && '❌ Not supported on this device/browser'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {notificationStatus !== 'unsupported' && (
+                      {notificationStatus === 'checking' && 'Checking status...'}
+                      {notificationStatus === 'enabled' && '✅ Enabled - You\'ll receive alerts for new bookings'}
+                      {notificationStatus === 'disabled' && '❌ Disabled - Enable to get booking alerts'}
+                      {notificationStatus === 'unsupported' && '❌ Not supported on this device/browser'}
+                    </p>
+                </div>
+              </div>
+              
+                {notificationStatus !== 'unsupported' && (
                       <div className="flex flex-wrap gap-2">
-                        {notificationStatus === 'disabled' ? (
-                          <button
-                            onClick={handleEnableNotifications}
+                    {notificationStatus === 'disabled' ? (
+                      <button
+                        onClick={handleEnableNotifications}
                             className="px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors"
-                          >
-                            Enable
-                          </button>
-                        ) : (
-                          <button
-                            onClick={handleDisableNotifications}
+                      >
+                        Enable
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleDisableNotifications}
                             className="px-3 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700 transition-colors"
-                          >
-                            Disable
-                          </button>
-                        )}
-                        
-                        <button
-                          onClick={handleTestNotification}
+                      >
+                        Disable
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={handleTestNotification}
                           className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors"
-                        >
-                          Test
-                        </button>
-                        
-                        <button
-                          onClick={handleTestBookingNotification}
+                    >
+                      Test
+                    </button>
+                    
+                    <button
+                      onClick={handleTestBookingNotification}
                           className="px-3 py-1.5 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 transition-colors"
                         >
                           Test Booking

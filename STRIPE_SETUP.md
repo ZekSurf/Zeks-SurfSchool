@@ -49,7 +49,7 @@ NEXT_PUBLIC_BOOKING_WEBHOOK_URL=https://cheeseman.app.n8n.cloud/webhook-test/008
    - Use any future expiry date and any 3-digit CVC
 
 ### 3. Webhook Configuration (Essential for Google Calendar Integration)
-npm 
+
 Set up webhooks to handle payment confirmations and send data to n8n:
 
 1. In Stripe Dashboard, go to **Developers** → **Webhooks**
@@ -113,13 +113,15 @@ Use these test card numbers for testing different scenarios:
 
 ## 🎯 Features Implemented
 
-✅ **Secure Payment Processing**: Stripe Elements integration  
+✅ **Secure Payment Processing**: Stripe Elements integration with React Stripe.js  
 ✅ **Customer Management**: Automatic customer creation/retrieval  
 ✅ **Order Summary**: Real-time tax calculation (8%)  
 ✅ **Multi-lesson Discounts**: Preserved in payment metadata  
 ✅ **Error Handling**: Comprehensive error messages  
 ✅ **Mobile Responsive**: Works on all devices  
 ✅ **Payment Confirmation**: Success page with payment details  
+✅ **Webhook Integration**: Automatic booking creation via Stripe webhooks
+✅ **Staff Notifications**: Push notifications to staff on successful payments
 
 ## 🔒 Security Features
 
@@ -128,6 +130,13 @@ Use these test card numbers for testing different scenarios:
 - **Client-Side Validation**: Real-time form validation
 - **Secure Webhooks**: Webhook signature verification
 - **Environment Variables**: Sensitive keys stored securely
+
+## 📦 Dependencies
+
+Current Stripe integration uses:
+- **@stripe/stripe-js**: ^7.3.1
+- **@stripe/react-stripe-js**: ^3.7.0
+- **stripe**: ^18.2.1
 
 ## 🚀 Going Live
 

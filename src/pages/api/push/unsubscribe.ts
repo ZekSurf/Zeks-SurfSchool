@@ -66,11 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Save updated subscriptions
     saveSubscriptions(filteredSubscriptions);
 
-    console.log('✅ Push subscription removed:', {
-      endpoint: endpoint.substring(0, 50) + '...',
-      removed: removed > 0,
-      remaining: filteredSubscriptions.length
-    });
+    // SECURITY: Removed unsubscription logging - contains endpoint data
 
     return res.status(200).json({ 
       success: true, 

@@ -61,7 +61,7 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     try {
       const pushData = event.data.json();
-      console.log('📱 Push data received:', pushData);
+      // SECURITY: Removed push data logging - contains notification data
       
       notificationData = {
         ...notificationData,
@@ -169,7 +169,7 @@ self.addEventListener('sync', (event) => {
 
 // Message event for communication with main app
 self.addEventListener('message', (event) => {
-  console.log('📨 Message received in service worker:', event.data);
+  // SECURITY: Removed message logging - may contain sensitive data
   
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -224,7 +224,7 @@ async function checkStaffLoginStatus() {
 // Helper function to sync booking data
 async function syncBookingData() {
   try {
-    console.log('📋 Syncing booking data...');
+    // SECURITY: Removed sync logging - may contain booking data
     // This could fetch latest bookings when coming back online
     return Promise.resolve();
   } catch (error) {

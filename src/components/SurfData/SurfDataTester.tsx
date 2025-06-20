@@ -58,11 +58,23 @@ export const SurfDataTester: React.FC = () => {
       // Replace with your actual n8n surf data webhook URL
       const webhookUrl = process.env.NEXT_PUBLIC_N8N_SURF_WEBHOOK_URL || 'https://your-n8n-instance.com/webhook/surf-data';
       
+      // Create basic auth header - try both client and server env vars
+      const username = process.env.NEXT_PUBLIC_N8N_WEBHOOK_USERNAME || process.env.N8N_WEBHOOK_USERNAME;
+      const password = process.env.NEXT_PUBLIC_N8N_WEBHOOK_PASSWORD || process.env.N8N_WEBHOOK_PASSWORD;
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add basic auth if credentials are available
+      if (username && password) {
+        const basicAuth = btoa(`${username}:${password}`);
+        headers['Authorization'] = `Basic ${basicAuth}`;
+      }
+      
       const response = await fetch(webhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 

@@ -33,8 +33,8 @@ export default async function handler(
   try {
     // Verify webhook signature
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    console.log('Webhook secret exists:', !!webhookSecret);
-    console.log('Signature exists:', !!sig);
+    // console.log('Webhook secret exists:', !!webhookSecret); // REMOVED: Security risk
+    // console.log('Signature exists:', !!sig); // REMOVED: Security risk
     
     if (!webhookSecret) {
       console.error('Stripe webhook secret not configured');
@@ -42,17 +42,20 @@ export default async function handler(
     }
 
     event = stripe.webhooks.constructEvent(buf, sig as string, webhookSecret);
-    console.log('Webhook signature verified successfully');
+    // console.log('Webhook signature verified successfully'); // REMOVED: Security risk
   } catch (err) {
     console.error('Webhook signature verification failed:', err);
-    return res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    return res.status(400).json({ error: 'Webhook signature verification failed' });
   }
 
   // Handle the event
   switch (event.type) {
     case 'payment_intent.succeeded':
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      console.log('Payment succeeded:', paymentIntent.id);
+      // Only log payment ID, not full object
+      if (process.env.NODE_ENV !== 'production') {
+        // SECURITY: Removed payment intent ID logging - contains payment data
+      }
       
       try {
         await handleSuccessfulPayment(paymentIntent);
@@ -64,7 +67,10 @@ export default async function handler(
 
     case 'payment_intent.payment_failed':
       const failedPayment = event.data.object as Stripe.PaymentIntent;
-      console.log('Payment failed:', failedPayment.id);
+      // Only log payment ID, not full object
+      if (process.env.NODE_ENV !== 'production') {
+        // SECURITY: Removed payment intent ID logging - contains payment data
+      }
       
       try {
         await handleFailedPayment(failedPayment);
@@ -75,40 +81,46 @@ export default async function handler(
       break;
 
     default:
-      console.log(`Unhandled event type: ${event.type}`);
+      // Only log in development
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`Unhandled event type: ${event.type}`);
+      }
   }
 
   res.json({ received: true });
 }
 
 async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
-  console.log('Processing successful payment:', paymentIntent.id);
   const { metadata } = paymentIntent;
   
+  if (process.env.NODE_ENV !== 'production') {
+    // SECURITY: Removed payment intent ID logging - contains payment data
+  }
+
   // Parse booking details from metadata
-  const bookingDetails = metadata.bookingDetails ? JSON.parse(metadata.bookingDetails) : [];
-  const firstBooking = bookingDetails[0]; // Get first lesson details
+  const bookingDetails = JSON.parse(metadata.bookingDetails || '[]');
   
   // Generate confirmation number
-  const timestamp = Date.now().toString().slice(-6);
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  const confirmationNumber = `SURF-${timestamp}-${random}`;
+  const confirmationNumber = `SURF-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(-4).toUpperCase()}`;
+
+  if (!bookingDetails.length) {
+    throw new Error('No booking details found in payment metadata');
+  }
+
+  const firstBooking = bookingDetails[0];
   
-  // Parse time range and create proper datetime strings
+  // Helper function to parse time slot and convert to datetime
   const parseTimeSlot = (timeString: string, dateString: string) => {
-    // timeString format: "9:00 AM - 10:00 AM"
-    const [startTimeStr, endTimeStr] = timeString.split(' - ');
-    
-    // Convert date to proper format
-    const bookingDate = new Date(dateString);
-    const dateOnly = bookingDate.toISOString().split('T')[0]; // Get YYYY-MM-DD
+    // e.g., "9:00 AM - 10:30 AM" or "9:00 - 10:30"
+    const [startTime, endTime] = timeString.split(' - ');
+    const dateOnly = new Date(dateString).toISOString().split('T')[0]; // YYYY-MM-DD format
     
     // Parse start time
-    const startTime = parseTime(startTimeStr);
-    const endTime = parseTime(endTimeStr);
+    const startTimeFormatted = parseTime(startTime);
+    const startDateTime = `${dateOnly}T${startTimeFormatted}:00-07:00`;
     
-    // Create ISO datetime strings (Pacific timezone)
-    const startDateTime = `${dateOnly}T${startTime}:00-07:00`;
+    // Parse end time and add 30 minute buffer
+    const endTimeFormatted = parseTime(endTime);
     
     // Add 30 minutes to end time for buffer
     const [endHours, endMinutes] = endTime.split(':').map(Number);
@@ -162,21 +174,30 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     timestamp: new Date().toISOString()
   };
 
-  console.log('Booking data prepared for n8n:', JSON.stringify(bookingData, null, 2));
+  // SECURITY: Only log booking details in development mode
+  if (process.env.NODE_ENV !== 'production') {
+    // SECURITY: Removed customer data logging - contains PII
+  }
 
   // Send to your n8n workflow
   const n8nWebhookUrl = process.env.N8N_BOOKING_WEBHOOK_URL;
-  console.log('N8N webhook URL exists:', !!n8nWebhookUrl);
+  // console.log('N8N webhook URL exists:', !!n8nWebhookUrl); // REMOVED: Security risk
   
   if (!n8nWebhookUrl) {
     console.error('N8N webhook URL not configured');
     throw new Error('N8N webhook URL not configured');
   }
 
+  // Create basic auth header
+  const username = process.env.N8N_WEBHOOK_USERNAME;
+  const password = process.env.N8N_WEBHOOK_PASSWORD;
+  const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
+
   const response = await fetch(n8nWebhookUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Basic ${basicAuth}`,
     },
     body: JSON.stringify(bookingData),
   });
@@ -187,22 +208,30 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     throw new Error(`Failed to send to n8n: ${response.status}`);
   }
 
-  console.log('Successfully sent booking data to n8n');
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Successfully sent booking data to n8n');
+  }
   
   // Save completed booking to Supabase for staff portal
   try {
-    console.log('🔄 Attempting to save booking to Supabase...');
-    console.log('📦 Booking data for Supabase:', JSON.stringify(bookingData, null, 2));
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🔄 Attempting to save booking to Supabase...');
+      // SECURITY: Removed customer data logging - contains PII
+    }
     
     const supabaseResult = await supabaseStaffService.saveBookingFromStripeData(bookingData);
     
     if (supabaseResult.success) {
-      console.log('✅ Booking saved to Supabase successfully!');
-      console.log('📋 Confirmation number:', supabaseResult.booking?.confirmationNumber);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ Booking saved to Supabase successfully!');
+        // SECURITY: Removed confirmation number logging - contains booking data
+      }
       
       // Send push notification to staff devices
       try {
-        console.log('📱 Sending push notification to staff...');
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('📱 Sending push notification to staff...');
+        }
         
         // Format date and time for notification
         const lessonDate = new Date(firstBooking.date).toLocaleDateString('en-US', {
@@ -230,8 +259,11 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
         };
 
         const pushUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/push/send-notification`;
-        console.log('📱 Push notification URL:', pushUrl);
-        console.log('📱 Push notification payload:', JSON.stringify(notificationPayload, null, 2));
+        // SECURITY: Only log push URL in development
+        if (process.env.NODE_ENV !== 'production') {
+          // SECURITY: Removed URL logging - exposes system configuration
+          // SECURITY: Removed notification payload logging - contains customer data
+        }
 
         const pushResponse = await fetch(pushUrl, {
           method: 'POST',
@@ -241,17 +273,24 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
           body: JSON.stringify(notificationPayload),
         });
 
-        console.log('📱 Push response status:', pushResponse.status);
-        console.log('📱 Push response statusText:', pushResponse.statusText);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('📱 Push response status:', pushResponse.status);
+          console.log('📱 Push response statusText:', pushResponse.statusText);
+        }
 
         if (pushResponse.ok) {
           const pushResult = await pushResponse.json();
-          console.log('✅ Push notification sent successfully:', pushResult.message);
-          console.log('📊 Push notification stats:', pushResult);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('✅ Push notification sent successfully:', pushResult.message);
+            // SECURITY: Removed notification stats logging - may contain sensitive data
+          }
         } else {
           const pushError = await pushResponse.text();
           console.error('❌ Failed to send push notification:', pushError);
-          console.error('❌ Push response headers:', Object.fromEntries(pushResponse.headers.entries()));
+          // SECURITY: Only log response headers in development
+          if (process.env.NODE_ENV !== 'production') {
+            // SECURITY: Removed headers logging - may expose system info
+          }
         }
       } catch (pushError) {
         console.error('💥 Exception while sending push notification:', pushError);
@@ -259,20 +298,30 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
       }
     } else {
       console.error('❌ Failed to save booking to Supabase:');
-      console.error('Error details:', supabaseResult.error);
+      // SECURITY: Only log error details in development - may contain sensitive data
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Error details:', supabaseResult.error);
+      }
     }
   } catch (error) {
     console.error('💥 Exception while saving booking to Supabase:');
-    console.error('Exception details:', error);
+          // SECURITY: Only log exception details in development - may contain sensitive data
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Exception details:', error);
+      }
     // Don't throw error here - staff system failure shouldn't break webhook
   }
   
   // Clear booking cache for this date and beach to ensure fresh availability data
   try {
-    console.log(`🔄 Invalidating cache for booking date: ${firstBooking.date}`);
+    if (process.env.NODE_ENV !== 'production') {
+      // SECURITY: Removed cache invalidation logging - may contain booking data
+    }
     const bookingDate = new Date(firstBooking.date).toISOString().split('T')[0]; // YYYY-MM-DD format
     await bookingService.invalidateCacheForBooking(bookingDate);
-    console.log(`✅ Cache invalidated for all beaches on ${bookingDate}`);
+    if (process.env.NODE_ENV !== 'production') {
+      // SECURITY: Removed cache invalidation logging - may contain booking data
+    }
   } catch (error) {
     console.error('❌ Error invalidating booking cache:', error);
     // Don't throw error here - cache clearing failure shouldn't break webhook
@@ -291,16 +340,25 @@ async function handleFailedPayment(paymentIntent: Stripe.PaymentIntent) {
     timestamp: new Date().toISOString(),
   };
 
-  console.log('Payment failed:', failureData);
+  // SECURITY: Only log failure details in development
+  if (process.env.NODE_ENV !== 'production') {
+    // SECURITY: Removed failure data logging - contains payment/customer info
+  }
 
   // Optionally send failure notification to n8n
   const n8nFailureWebhookUrl = process.env.N8N_FAILURE_WEBHOOK_URL;
   if (n8nFailureWebhookUrl) {
     try {
+      // Create basic auth header for failure webhook
+      const username = process.env.N8N_WEBHOOK_USERNAME;
+      const password = process.env.N8N_WEBHOOK_PASSWORD;
+      const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
+
       await fetch(n8nFailureWebhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Basic ${basicAuth}`,
         },
         body: JSON.stringify(failureData),
       });

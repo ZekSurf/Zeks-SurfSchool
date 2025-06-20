@@ -43,7 +43,7 @@ class BookingCacheService {
    */
   private getCacheKey(date: string, beach: string): string {
     const cacheKey = `${date}_${beach.toLowerCase().replace(/\s+/g, '_')}`;
-    console.log(`🔑 Generated cache key: "${cacheKey}" for date: ${date}, beach: ${beach}`);
+    // SECURITY: Removed cache key logging
     return cacheKey;
   }
 
@@ -121,7 +121,7 @@ class BookingCacheService {
     }
 
     if (this.isCacheValid(entry)) {
-      console.log(`✅ Cache HIT: Valid data found for key "${cacheKey}"`);
+      // SECURITY: Removed cache hit logging
       return entry.data;
     } else {
       console.log(`🗑️ Cache EXPIRED: Removing expired entry for key "${cacheKey}"`);
@@ -147,7 +147,7 @@ class BookingCacheService {
     cache[cacheKey] = entry;
     this.setCache(cache);
     
-    console.log(`💾 Cache STORED: Data cached for key "${cacheKey}" with ${data.slots?.length || 0} slots`);
+    // SECURITY: Removed cache storage logging
   }
 
   /**
@@ -175,7 +175,7 @@ class BookingCacheService {
     forceRefresh: boolean = false,
     fetchFunction: (beach: string, date: Date) => Promise<BookingResponse>
   ): Promise<BookingResponse> {
-    console.log(`🔍 Requesting booking slots for ${beach} on ${date} (forceRefresh: ${forceRefresh})`);
+    // SECURITY: Removed booking request logging
 
     // Skip cache if force refresh is requested
     if (forceRefresh) {
@@ -189,11 +189,11 @@ class BookingCacheService {
     }
 
     // Cache miss or force refresh - fetch from API
-    console.log(`🌐 Fetching fresh data from API for ${beach} on ${date}`);
-    console.log(`🔍 DEBUG: Cache requesting slots for beach="${beach}", date="${date}"`);
+    // SECURITY: Removed API fetch logging
+    // SECURITY: Removed debug request logging
     try {
       const dateObj = new Date(date);
-      console.log(`🔍 DEBUG: Converted date string "${date}" to Date object:`, dateObj);
+      // SECURITY: Removed date conversion debug logging
       
       // Don't overwrite the detailed payload from bookingService
       // this.lastApiPayload = { beach, date, dateObj };

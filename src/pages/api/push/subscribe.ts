@@ -55,10 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      console.log('✅ Push subscription updated:', {
-        endpoint: subscription.endpoint.substring(0, 50) + '...',
-        userAgent: subscription.userAgent?.substring(0, 100) + '...'
-      });
+      // SECURITY: Removed subscription logging - contains endpoint data
     } else {
       // Insert new subscription
       const { error: insertError } = await supabase
@@ -78,10 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      console.log('✅ New push subscription registered:', {
-        endpoint: subscription.endpoint.substring(0, 50) + '...',
-        userAgent: subscription.userAgent?.substring(0, 100) + '...'
-      });
+      // SECURITY: Removed subscription logging - contains endpoint data
     }
 
     // Get total subscription count

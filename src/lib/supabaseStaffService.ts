@@ -60,7 +60,7 @@ class SupabaseStaffService {
         return { success: false, error: error.message };
       }
 
-      console.log('✅ Booking saved to Supabase:', booking.confirmationNumber);
+      // SECURITY: Removed confirmation number logging - contains booking data
       return { success: true };
     } catch (error) {
       console.error('Error saving booking to Supabase:', error);
@@ -200,7 +200,7 @@ class SupabaseStaffService {
         return { success: false, error: error.message };
       }
 
-      console.log(`✅ Booking ${bookingId} status updated to ${status}`);
+      // SECURITY: Removed booking update logging - contains booking data
       return { success: true };
     } catch (error) {
       console.error('Error updating booking status in Supabase:', error);
@@ -290,7 +290,7 @@ class SupabaseStaffService {
         console.log('✅ PIN verified successfully');
         return true;
       } else {
-        console.log('❌ PIN verification failed:', result.error || 'Invalid PIN');
+        // SECURITY: Removed PIN verification logging - contains authentication data
         return false;
       }
     } catch (error) {

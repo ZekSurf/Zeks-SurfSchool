@@ -9,9 +9,9 @@ class BookingService {
       'https://cheeseman.app.n8n.cloud/webhook-test/00508e20-101f-4e94-9b6f-bb5bdc2e4e07';
     
     // Debug logging - remove this in production
-    console.log('Environment variables loaded:');
-    console.log('NEXT_PUBLIC_BOOKING_WEBHOOK_URL:', process.env.NEXT_PUBLIC_BOOKING_WEBHOOK_URL);
-    console.log('Current webhookUrl:', this.webhookUrl);
+    // SECURITY: Removed environment logging - exposes system configuration
+    // SECURITY: Removed webhook URL logging - exposes system configuration
+    // SECURITY: Removed webhook URL logging - exposes system configuration
   }
 
   private getBeachCoordinates(beach: string): BeachCoordinates {
@@ -51,12 +51,7 @@ class BookingService {
     const dateISO = this.formatDateToISO(date);
     const dateTimeISO = this.formatDateTimeToISO(date);
     
-    console.log(`🔍 DEBUG: Date formatting for webhook:`, {
-      originalDate: date.toISOString(),
-      dateISO,
-      dateTimeISO,
-      beach
-    });
+    // SECURITY: Removed date formatting debug - may contain sensitive data
     
     const payload: BookingRequest = {
       date: dateISO,
@@ -78,17 +73,29 @@ class BookingService {
       requestId: Math.random().toString(36).substr(2, 9)
     };
 
-    console.log('Making booking request to:', this.webhookUrl);
-    console.log('Request payload:', payload);
+          // SECURITY: Removed webhook URL logging - exposes system configuration
+    // SECURITY: Removed payload logging - contains booking request data
     
     const startTime = Date.now();
     
     try {
+      // Create basic auth header - try both client and server env vars
+      const username = process.env.NEXT_PUBLIC_N8N_WEBHOOK_USERNAME || process.env.N8N_WEBHOOK_USERNAME;
+      const password = process.env.NEXT_PUBLIC_N8N_WEBHOOK_PASSWORD || process.env.N8N_WEBHOOK_PASSWORD;
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add basic auth if credentials are available
+      if (username && password) {
+        const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
+        headers['Authorization'] = `Basic ${basicAuth}`;
+      }
+
       const response = await fetch(this.webhookUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(payload),
       });
 
@@ -114,7 +121,7 @@ class BookingService {
       }
 
       const rawData = await response.json();
-      console.log('Raw webhook response:', rawData);
+      // SECURITY: Removed raw webhook response logging - contains sensitive data
       
       // The response is an array with an object containing 'output'
       let data: BookingResponse;
@@ -148,7 +155,7 @@ class BookingService {
       supabaseCacheService.lastApiResponse = data;
       supabaseCacheService.lastError = null;
       
-      console.log('Processed booking data:', data);
+      // SECURITY: Removed booking data logging - contains sensitive information
       return data;
       
     } catch (error) {
@@ -176,12 +183,7 @@ class BookingService {
   public async fetchAvailableSlots(beach: string, date: Date, forceRefresh: boolean = false): Promise<BookingResponse> {
     const dateString = this.formatDateToISO(date);
     
-    console.log(`🔍 DEBUG: BookingService.fetchAvailableSlots called with:`, {
-      beach,
-      date: date.toISOString(),
-      dateString,
-      forceRefresh
-    });
+    // SECURITY: Removed debug logging - may contain sensitive booking data
     
     try {
       return await supabaseCacheService.getBookingSlotsForDay(

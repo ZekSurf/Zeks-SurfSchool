@@ -74,7 +74,7 @@ class ReviewService {
       const updatedReviews = [...existingReviews, reviewSubmission];
       this.saveReviews(updatedReviews);
 
-      console.log('Review submitted successfully:', reviewSubmission.id);
+      // SECURITY: Removed review submission logging - contains user data
       return { success: true, reviewId: reviewSubmission.id };
 
     } catch (error) {

@@ -87,7 +87,7 @@ class PushNotificationService {
         applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey)
       });
 
-      console.log('✅ Push subscription created:', subscription);
+      // SECURITY: Removed subscription logging - contains endpoint data
       
       // Save subscription locally and send to server
       await this.saveSubscription(subscription);

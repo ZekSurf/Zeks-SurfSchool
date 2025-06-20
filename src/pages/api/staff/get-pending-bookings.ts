@@ -84,11 +84,11 @@ export default async function handler(
       if (existingIndex >= 0) {
         // Update existing booking
         bookings[existingIndex] = newBooking;
-        console.log('Updated existing booking:', newBooking.paymentIntentId);
+        // SECURITY: Removed payment intent logging - contains payment data
       } else {
         // Add new booking
         bookings.push(newBooking);
-        console.log('Added new booking:', newBooking.paymentIntentId);
+        // SECURITY: Removed payment intent logging - contains payment data
       }
       
       writeBookingsFile(bookings);

@@ -3,111 +3,140 @@ import { supabase } from '@/lib/supabase';
 import { supabaseCacheService } from '@/lib/supabaseCacheService';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  // SECURITY: Disable debug endpoints in production
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ error: 'Not Found' });
   }
-
-  try {
-    // Test 1: Check if cache table exists and is accessible
-    console.log('🧪 Test 1: Checking cache table access...');
-    const { data: tableTest, error: tableError } = await supabase
-      .from('time_slots_cache')
-      .select('*')
-      .limit(1);
-
-    // Test 2: Try to create a test cache entry
-    console.log('🧪 Test 2: Creating test cache entry...');
-    const testCacheKey = `test_${Date.now()}`;
-    const testDate = new Date().toISOString().split('T')[0];
-    const testData = {
-      slots: [
-        { id: 'test-1', time: '9:00 AM', available: true }
-      ],
-      beach: 'Test Beach',
-      date: testDate
-    };
-
-    const { data: insertData, error: insertError } = await supabase
-      .from('time_slots_cache')
-      .insert({
-        cache_key: testCacheKey,
-        beach: 'Test Beach',
-        date: testDate,
-        data: testData,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-      })
-      .select();
-
-    // Test 3: Try to read the test entry back
-    console.log('🧪 Test 3: Reading test cache entry...');
-    const { data: readData, error: readError } = await supabase
-      .from('time_slots_cache')
-      .select('*')
-      .eq('cache_key', testCacheKey)
-      .single();
-
-    // Test 4: Try the cache service methods
-    console.log('🧪 Test 4: Testing cache service...');
-    let cacheServiceTest = null;
-    let cacheServiceError = null;
-    try {
-      const cacheInfo = await supabaseCacheService.getCacheInfo();
-      cacheServiceTest = {
-        cacheInfoSuccess: true,
-        totalEntries: cacheInfo.totalEntries,
-        validEntries: cacheInfo.validEntries
-      };
-    } catch (error) {
-      cacheServiceError = error instanceof Error ? error.message : 'Unknown error';
+    if (req.method !== 'GET') {
+      res.setHeader('Allow', ['GET']);
+      return res.status(405).end('Method Not Allowed');
     }
 
-    // Test 5: Clean up test entry
-    console.log('🧪 Test 5: Cleaning up test entry...');
-    const { error: deleteError } = await supabase
-      .from('time_slots_cache')
-      .delete()
-      .eq('cache_key', testCacheKey);
+    try {
+      // SECURITY: Only allow in development
+      if (process.env.NODE_ENV !== 'development') {
+        return res.status(403).json({
+          success: false,
+          error: 'Debug endpoints only available in development'
+        });
+      }
 
-    const results = {
-      test1_table_access: {
-        success: !tableError,
-        error: tableError?.message || null,
-        accessible: !!tableTest
-      },
-      test2_insert: {
-        success: !insertError,
-        error: insertError?.message || null,
-        inserted_id: insertData?.[0]?.id || null
-      },
-      test3_read: {
-        success: !readError,
-        error: readError?.message || null,
-        data_matches: readData?.data ? JSON.stringify(readData.data) === JSON.stringify(testData) : false
-      },
-      test4_cache_service: {
-        success: !cacheServiceError,
-        error: cacheServiceError,
-        data: cacheServiceTest
-      },
-      test5_cleanup: {
-        success: !deleteError,
-        error: deleteError?.message || null
-      },
-      overall_status: !tableError && !insertError && !readError && !cacheServiceError && !deleteError ? 'PASS' : 'FAIL'
-    };
+      const results: any[] = [];
+      
+      console.log('🧪 Test 1: Checking cache table access...');
+      try {
+        const info = await supabaseCacheService.getCacheInfo();
+        results.push({
+          test: 'Cache Info Access',
+          status: 'SUCCESS',
+          data: info
+        });
+      } catch (error) {
+        results.push({
+          test: 'Cache Info Access', 
+          status: 'FAILED',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
 
-    console.log('🧪 Cache Test Results:', results);
+      console.log('🧪 Test 2: Testing cache service integration...');
+      try {
+        // Test using the public getBookingSlotsForDay method which will create cache entries
+        const mockFetchFunction = async (beach: string, date: Date) => {
+          return {
+            beach: beach,
+            date: date.toISOString().split('T')[0],
+            slots: [
+              {
+                slotId: 'test-slot-1',
+                startTime: '2024-12-01T09:00:00-08:00',
+                endTime: '2024-12-01T10:30:00-08:00',
+                label: 'Good',
+                price: 110,
+                openSpaces: '3',
+                available: true,
+                sky: 'Sunny'
+              }
+            ],
+            meta: {
+              fetchedAt: new Date().toISOString(),
+              timezone: 'America/Los_Angeles'
+            }
+          };
+        };
 
-    return res.status(200).json({
-      message: 'Cache system test completed',
-      results
-    });
+        const slots = await supabaseCacheService.getBookingSlotsForDay('2024-12-01', 'Doheny', true, mockFetchFunction);
+        results.push({
+          test: 'Cache Service Integration',
+          status: 'SUCCESS',
+          data: {
+            slotsFound: slots?.slots?.length || 0,
+            beach: slots?.beach,
+            date: slots?.date
+          }
+        });
+      } catch (error) {
+        results.push({
+          test: 'Cache Service Integration',
+          status: 'FAILED',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
 
-  } catch (error) {
-    console.error('Cache test error:', error);
-    return res.status(500).json({ 
-      error: 'Cache test failed', 
-      details: error instanceof Error ? error.message : 'Unknown error' 
-    });
-  }
+      console.log('🧪 Test 3: Testing cache cleanup...');
+      try {
+        await supabaseCacheService.clearCacheForDate('2024-12-01', 'Doheny');
+        results.push({
+          test: 'Cache Cleanup',
+          status: 'SUCCESS',
+          data: 'Test entries cleared for date'
+        });
+      } catch (error) {
+        results.push({
+          test: 'Cache Cleanup',
+          status: 'FAILED',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+      // Final cache info check
+      try {
+        const finalInfo = await supabaseCacheService.getCacheInfo();
+        results.push({
+          test: 'Final Cache State',
+          status: 'SUCCESS',
+          data: finalInfo
+        });
+      } catch (error) {
+        results.push({
+          test: 'Final Cache State',
+          status: 'FAILED',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+      const successCount = results.filter(r => r.status === 'SUCCESS').length;
+      const totalTests = results.length;
+
+      console.log('🧪 Cache Test Results:', results);
+
+      return res.status(200).json({
+        success: true,
+        summary: {
+          totalTests,
+          successCount,
+          failureCount: totalTests - successCount,
+          allPassed: successCount === totalTests
+        },
+        results
+      });
+
+    } catch (error) {
+      console.error('Cache test error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
 } 
