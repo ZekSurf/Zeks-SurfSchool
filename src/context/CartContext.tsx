@@ -10,6 +10,8 @@ interface CartItem {
   isPrivateLesson: boolean;
   wetsuitSize?: string;
   slotId?: string;
+  openSpaces?: number;
+  available?: boolean;
   discountedPrice?: number;
   bookingForOthers?: {
     name: string;

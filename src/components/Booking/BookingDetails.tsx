@@ -166,6 +166,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
       isPrivateLesson,
       wetsuitSize,
       slotId: slotData.slotId,
+      openSpaces: slotData.availableSpaces,
+      available: slotData.available,
       ...(isBookingForOthers && {
         bookingForOthers: otherPersonInfo
       })

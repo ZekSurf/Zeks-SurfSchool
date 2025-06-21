@@ -79,6 +79,8 @@ export default async function handler(
             price: item.price,
             wetsuitSize: item.wetsuitSize || contactInfo.wetsuitSize || '', // Include wetsuit size
             slotId: item.slotId, // Include the actual slot ID
+            openSpaces: item.openSpaces, // Include cached openSpaces value
+            available: item.available, // Include cached available value
           }))),
         }),
       },
