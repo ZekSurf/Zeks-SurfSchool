@@ -120,15 +120,9 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     const startTimeFormatted = parseTime(startTime);
     const startDateTime = `${dateOnly}T${startTimeFormatted}:00-07:00`;
     
-    // Parse end time properly
+    // Parse end time properly (no buffer needed - lesson duration is already correct)
     const endTimeFormatted = parseTime(endTime);
-    
-    // Add 30 minutes to end time for buffer
-    const [endHours, endMinutes] = endTimeFormatted.split(':').map(Number);
-    const endDate = new Date();
-    endDate.setHours(endHours, endMinutes + 30, 0, 0);
-    const bufferedEndTime = endDate.toTimeString().slice(0, 5);
-    const endDateTime = `${dateOnly}T${bufferedEndTime}:00-07:00`;
+    const endDateTime = `${dateOnly}T${endTimeFormatted}:00-07:00`;
     
     return { startDateTime, endDateTime };
   };
