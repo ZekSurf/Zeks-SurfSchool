@@ -238,6 +238,8 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   if (process.env.NODE_ENV !== 'production') {
     console.log('Successfully sent booking data to n8n');
   }
+
+  // IMPORTANT: n8n webhook call succeeded - everything after this point should not cause Stripe retries
   
   // Save completed booking to Supabase for staff portal
   try {
@@ -332,10 +334,10 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     }
   } catch (error) {
     console.error('💥 Exception while saving booking to Supabase:');
-          // SECURITY: Only log exception details in development - may contain sensitive data
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Exception details:', error);
-      }
+    // SECURITY: Only log exception details in development - may contain sensitive data
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Exception details:', error);
+    }
     // Don't throw error here - staff system failure shouldn't break webhook
   }
   
