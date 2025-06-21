@@ -181,12 +181,12 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
         router.push('/checkout');
         break;
       case 'another':
-        router.push('/#booking').then(() => {
-          const bookingSection = document.getElementById('booking');
-          if (bookingSection) {
-            bookingSection.scrollIntoView({ behavior: 'smooth' });
-          }
-        });
+    router.push('/#booking').then(() => {
+      const bookingSection = document.getElementById('booking');
+      if (bookingSection) {
+        bookingSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
         break;
     }
   };
@@ -307,41 +307,41 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
           {/* Left Column - Order Summary & Options */}
           <div className="space-y-6">
             {/* Comprehensive Lesson Details */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="bg-white rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-semibold text-gray-800 mb-6">Lesson Details</h2>
               
               {/* Basic Details */}
               <div className="space-y-3 mb-6">
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Beach</span>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Beach</span>
                   <span className="font-medium">{slotData.beach}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Date</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Date</span>
                   <span className="font-medium">{slotData.formattedDate}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Time</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Time</span>
                   <span className="font-medium">{slotData.time}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Conditions</span>
-                  <span className={`font-medium px-3 py-1 rounded-full text-sm ${
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Conditions</span>
+              <span className={`font-medium px-3 py-1 rounded-full text-sm ${
                     slotData.conditions === 'Great' ? 'bg-green-100 text-green-800' :
                     slotData.conditions === 'Good' ? 'bg-green-100 text-green-800' :
                     slotData.conditions === 'Decent' ? 'bg-orange-100 text-orange-800' :
-                    'bg-red-100 text-red-800'
+                'bg-red-100 text-red-800'
                   }`}>{slotData.conditions}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Weather</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Weather</span>
                   <span className="font-medium">{slotData.weather}</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                  <span className="text-gray-600">Base Price</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-gray-600">Base Price</span>
                   <span className="font-medium">${slotData.price}</span>
                 </div>
-              </div>
+            </div>
 
               {/* Wetsuit Size Selection */}
               <div 
@@ -353,7 +353,7 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
                 <h3 className="text-lg font-medium text-gray-800 mb-3">Wetsuit Size</h3>
                 <div className="space-y-4 overflow-hidden">
                   <div className="relative">
-                    <select
+              <select
                       className="w-full p-4 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1DA9C7] focus:border-[#1DA9C7] bg-white appearance-none bg-no-repeat bg-right text-base sm:text-sm max-w-full"
                       style={{
                         backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
@@ -361,51 +361,51 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
                         backgroundSize: '1.25em 1.25em',
                         minHeight: '44px' // iOS minimum touch target
                       }}
-                      value={wetsuitSize}
-                      onChange={e => setWetsuitSize(e.target.value)}
+                value={wetsuitSize}
+                onChange={e => setWetsuitSize(e.target.value)}
                       required
-                    >
+              >
                       <option value="">Select your wetsuit size</option>
-                      {WETSUIT_SIZES.map(size => (
-                        <option key={size} value={size}>{size}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    type="button"
+                {WETSUIT_SIZES.map(size => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </div>
+              <button
+                type="button"
                     className="text-[#1DA9C7] underline text-sm font-medium hover:no-underline focus:outline-none"
                     onClick={() => setShowSizeGuide(!showSizeGuide)}
-                  >
+              >
                     {showSizeGuide ? 'Hide size guide' : 'View size guide'}
-                  </button>
-                  {showSizeGuide && (
+              </button>
+          {showSizeGuide && (
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                       <h4 className="font-semibold mb-3">Wetsuit Size Guide</h4>
-                      <div className="overflow-x-auto">
+              <div className="overflow-x-auto">
                         <table className="w-full text-xs border border-gray-200 rounded">
-                          <thead className="bg-gray-100">
-                            <tr>
+                  <thead className="bg-gray-100">
+                    <tr>
                               <th className="py-2 px-2 text-left font-semibold">Size</th>
                               <th className="py-2 px-2 text-left font-semibold">Height</th>
                               <th className="py-2 px-2 text-left font-semibold">Weight</th>
                               <th className="py-2 px-2 text-left font-semibold">Chest</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {WETSUIT_SIZE_GUIDE.map(row => (
-                              <tr key={row.size} className="border-t border-gray-100">
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {WETSUIT_SIZE_GUIDE.map(row => (
+                      <tr key={row.size} className="border-t border-gray-100">
                                 <td className="py-1 px-2 font-medium">{row.size}</td>
                                 <td className="py-1 px-2">{row.height}</td>
                                 <td className="py-1 px-2">{row.weight}</td>
                                 <td className="py-1 px-2">{row.chest}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                  
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
                   {/* Private Lesson Option */}
                   <div className="flex items-center mt-4">
                     <input
@@ -418,8 +418,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
                     <label htmlFor="privateLesson" className="ml-3 text-gray-700 font-medium">
                       Make this a private lesson
                     </label>
-                  </div>
-                </div>
+            </div>
+          </div>
               </div>
 
               {/* Pricing Summary */}
@@ -433,47 +433,47 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
                 <div className="flex justify-between items-center py-3">
                   <span className="text-lg font-semibold text-gray-800">Total Price</span>
                   <span className="text-2xl font-bold text-[#1DA9C7]">${totalPrice}</span>
-                </div>
+              </div>
               </div>
             </div>
 
 
-          </div>
+        </div>
 
           {/* Right Column - Action Buttons */}
           <div className="space-y-6">
             {/* Multi-Lesson Discount Banner */}
-            <div className="bg-[#1DA9C7]/10 border-2 border-[#1DA9C7] rounded-xl p-6">
+        <div className="bg-[#1DA9C7]/10 border-2 border-[#1DA9C7] rounded-xl p-6">
               <div className="flex flex-col gap-4">
-                <div>
-                  <h3 className="text-xl font-semibold text-[#1DA9C7]">Multi-Lesson Discount</h3>
-                  <p className="text-gray-600">{getDiscountMessage()}</p>
-                </div>
-                <button
-                  onClick={handleAddAndBookAnother}
-                  className="bg-[#1DA9C7] text-white px-6 py-3 rounded-lg transition-colors shadow-md hover:bg-[#1897B2] font-medium"
-                >
-                  Add & Book Another
-                </button>
-              </div>
+            <div>
+              <h3 className="text-xl font-semibold text-[#1DA9C7]">Multi-Lesson Discount</h3>
+              <p className="text-gray-600">{getDiscountMessage()}</p>
             </div>
+            <button
+              onClick={handleAddAndBookAnother}
+                  className="bg-[#1DA9C7] text-white px-6 py-3 rounded-lg transition-colors shadow-md hover:bg-[#1897B2] font-medium"
+            >
+              Add & Book Another
+            </button>
+          </div>
+        </div>
 
             {/* Main Action Buttons */}
             <div className="flex flex-col gap-4">
-              <button
-                onClick={handleAddToCart}
+          <button
+            onClick={handleAddToCart}
                 className="w-full px-6 py-3 rounded-lg font-medium shadow-md border-2 transition-all bg-white text-[#1DA9C7] border-[#1DA9C7] hover:bg-gray-50"
-              >
-                Add to Cart
-              </button>
-              <button
-                onClick={handleCheckout}
+          >
+            Add to Cart
+          </button>
+          <button
+            onClick={handleCheckout}
                 className="w-full px-6 py-3 rounded-lg font-medium shadow-lg transition-all bg-[#1DA9C7] text-white hover:bg-[#1897B2] hover:shadow-xl hover:scale-[1.02]"
-              >
-                Continue to Checkout →
-              </button>
-            </div>
-          </div>
+          >
+            Continue to Checkout →
+          </button>
+        </div>
+      </div>
         </div>
 
 

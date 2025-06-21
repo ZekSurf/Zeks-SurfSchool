@@ -120,11 +120,11 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     const startTimeFormatted = parseTime(startTime);
     const startDateTime = `${dateOnly}T${startTimeFormatted}:00-07:00`;
     
-    // Parse end time and add 30 minute buffer
+    // Parse end time properly
     const endTimeFormatted = parseTime(endTime);
     
     // Add 30 minutes to end time for buffer
-    const [endHours, endMinutes] = endTime.split(':').map(Number);
+    const [endHours, endMinutes] = endTimeFormatted.split(':').map(Number);
     const endDate = new Date();
     endDate.setHours(endHours, endMinutes + 30, 0, 0);
     const bufferedEndTime = endDate.toTimeString().slice(0, 5);
@@ -204,14 +204,12 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     paymentIntentId: paymentIntent.id,
     confirmationNumber: confirmationNumber,
     amount: paymentIntent.amount / 100, // Convert from cents (final amount after discount)
-    originalAmount: discountInfo ? discountInfo.originalAmount : (paymentIntent.amount / 100),
     currency: paymentIntent.currency,
     customerName: metadata.customerName,
     customerEmail: metadata.customerEmail,
     customerPhone: metadata.customerPhone,
-    wetsuitSize: metadata.wetsuitSize || '', // Add wetsuit size to n8n payload
+    wetsuitSize: metadata.wetsuitSize || '',
     specialRequests: metadata.specialRequests || '',
-    // Discount information
     discountApplied: !!discountInfo,
     discountCode: discountInfo?.code || null,
     discountType: discountInfo?.type || null,
@@ -228,19 +226,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
       label: "Good", // Default label - you can enhance this based on conditions
       price: firstBooking.price,
       openSpaces: remainingOpenSpaces, // Updated open spaces after booking
-      available: isSlotStillAvailable, // Updated availability
-      wetsuitSize: firstBooking.wetsuitSize || metadata.wetsuitSize || '' // Wetsuit size from booking or customer
-    },
-    // Additional booking information for n8n to handle availability updates
-    bookingUpdate: {
-      slotId: firstBooking.slotId || `fallback-${Date.now()}`, // Use actual slot ID
-      beach: firstBooking.beach,
-      date: new Date(firstBooking.date).toISOString().split('T')[0],
-      timeSlot: firstBooking.time,
-      wasPrivateBooking: isPrivateLesson,
-      spacesReduced: isPrivateLesson ? 'set_to_zero' : 'reduced_by_one',
-      newOpenSpaces: remainingOpenSpaces,
-      newAvailability: isSlotStillAvailable
+      available: isSlotStillAvailable // Updated availability
     },
     timestamp: new Date().toISOString()
   };

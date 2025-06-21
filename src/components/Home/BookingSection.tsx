@@ -385,7 +385,7 @@ export const BookingSection = () => {
               ? 'cursor-not-allowed bg-gray-50 border-gray-100 opacity-50' 
               : isSelected 
                 ? 'bg-[#1DA9C7] text-white border-[#1DA9C7] shadow-md cursor-pointer' 
-                : isToday 
+              : isToday 
                   ? 'bg-[#E8F7F7] border-[#1DA9C7] cursor-pointer hover:border-[#1DA9C7] hover:shadow-md' 
                   : 'border-gray-200 hover:bg-[#E8F7F7] cursor-pointer hover:border-[#1DA9C7] hover:shadow-md'
             }
@@ -396,10 +396,10 @@ export const BookingSection = () => {
             ${isPastDate 
               ? 'text-gray-400' 
               : isSelected 
-                ? 'text-white' 
-                : isToday 
-                  ? 'text-[#1DA9C7]' 
-                  : 'text-gray-700'
+              ? 'text-white' 
+              : isToday 
+                ? 'text-[#1DA9C7]' 
+                : 'text-gray-700'
             }
           `}>
             {day}

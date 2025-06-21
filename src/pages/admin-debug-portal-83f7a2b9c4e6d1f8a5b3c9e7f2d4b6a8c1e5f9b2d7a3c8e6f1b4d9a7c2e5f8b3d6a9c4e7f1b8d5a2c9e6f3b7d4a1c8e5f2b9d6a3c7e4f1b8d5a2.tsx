@@ -118,9 +118,9 @@ export default function AdminDebugPortal() {
     if (authStatus === 'authenticated' && storedKey) {
       setIsAuthenticated(true);
       setAdminKey(storedKey);
-              loadDebugInfo();
-        loadReviews();
-        loadStaffConfig();
+      loadDebugInfo();
+      loadReviews();
+      loadStaffConfig();
         loadDiscountCodes();
     }
 

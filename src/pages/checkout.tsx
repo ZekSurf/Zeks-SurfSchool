@@ -267,7 +267,7 @@ export default function CheckoutPage() {
                             </p>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="font-medium">${item.price}</span>
+                          <span className="font-medium">${item.price}</span>
                             <button
                               onClick={() => removeItem(index)}
                               className="text-gray-400 hover:text-red-500 transition-colors p-1"
@@ -367,10 +367,10 @@ export default function CheckoutPage() {
                         <div className="flex justify-between items-center text-sm text-green-600">
                           <span>Discount ({appliedDiscount.code})</span>
                           <span>-${discountAmount.toFixed(2)}</span>
-                        </div>
+                    </div>
                       )}
                       <div className="flex justify-between items-center py-2 text-lg font-semibold border-t border-gray-200">
-                        <span>Total</span>
+                      <span>Total</span>
                         <span>${finalTotal.toFixed(2)}</span>
                       </div>
                     </div>
