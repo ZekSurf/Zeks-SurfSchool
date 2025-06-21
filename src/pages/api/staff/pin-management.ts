@@ -261,7 +261,31 @@ async function verifyPin(req: NextApiRequest, res: NextApiResponse) {
       });
     }
 
-    const isValid = await supabaseStaffService.verifyStaffPin(pin);
+    // Verify PIN directly against database
+    const { data: staffData, error: fetchError } = await supabase
+      .from('staff_pins')
+      .select('*')
+      .eq('pin', pin)
+      .eq('is_active', true)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Database error verifying PIN:', fetchError);
+      return res.status(500).json({
+        success: false,
+        error: 'Database error while verifying PIN'
+      });
+    }
+
+    const isValid = !!staffData;
+
+    // Update last_used_at if PIN is valid
+    if (isValid) {
+      await supabase
+        .from('staff_pins')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('id', staffData.id);
+    }
 
     return res.status(200).json({
       success: true,

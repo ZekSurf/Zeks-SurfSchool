@@ -276,22 +276,47 @@ class SupabaseStaffService {
 
   public async verifyStaffPin(pin: string): Promise<boolean> {
     try {
-      const response = await fetch('/api/staff/pin-management', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ pin }),
-      });
+      // Check if we're on the server side or client side
+      if (typeof window === 'undefined') {
+        // Server-side: query database directly
+        const { data: staffData, error: fetchError } = await supabase
+          .from('staff_pins')
+          .select('*')
+          .eq('pin', pin)
+          .eq('is_active', true)
+          .single();
 
-      const result = await response.json();
-      
-      if (result.success && result.valid) {
-        console.log('✅ PIN verified successfully');
-        return true;
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          console.error('Database error verifying PIN:', fetchError);
+          return false;
+        }
+
+        const isValid = !!staffData;
+
+        // Update last_used_at if PIN is valid
+        if (isValid) {
+          await supabase
+            .from('staff_pins')
+            .update({ last_used_at: new Date().toISOString() })
+            .eq('id', staffData.id);
+        }
+
+        return isValid;
       } else {
-        // SECURITY: Removed PIN verification logging - contains authentication data
-        return false;
+        // Client-side: make API request
+        const response = await fetch(`/api/staff/pin-management?action=verify&pin=${encodeURIComponent(pin)}`, {
+          method: 'GET',
+        });
+
+        const result = await response.json();
+        
+        if (result.success && result.isValid) {
+          console.log('✅ PIN verified successfully');
+          return true;
+        } else {
+          // SECURITY: Removed PIN verification logging - contains authentication data
+          return false;
+        }
       }
     } catch (error) {
       console.error('Error verifying staff PIN:', error);
