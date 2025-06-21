@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface WaiverAgreementProps {
   onAccept: (waiverData: {
@@ -17,7 +17,7 @@ export const WaiverAgreement: React.FC<WaiverAgreementProps> = ({ onAccept }) =>
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const handleAccept = () => {
+  const handleContinue = () => {
     if (!participantName.trim()) {
       setError('Participant name is required.');
       return;
@@ -172,13 +172,13 @@ By signing below, I acknowledge I have read, understood, and voluntarily agree t
           readOnly
         />
       </div>
-      {error && <div className="text-red-600 mb-2 text-sm">{error}</div>}
+      {error && <div className="text-red-600 mb-4 text-sm">{error}</div>}
       <button
         className="w-full bg-[#1DA9C7] text-white py-3 rounded-lg font-semibold hover:bg-[#1897B2] transition-colors disabled:opacity-50"
-        onClick={handleAccept}
+        onClick={handleContinue}
         disabled={!participantName || (isMinor && !guardianName) || !agreed}
       >
-        I Agree & Continue
+        Continue
       </button>
     </div>
   );

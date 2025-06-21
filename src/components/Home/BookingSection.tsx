@@ -207,6 +207,19 @@ export const BookingSection = () => {
     return () => observer.disconnect();
   }, []);
 
+  // Clear selected date if it becomes invalid (past date)
+  useEffect(() => {
+    if (selectedDate) {
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      if (selectedDate < todayStart) {
+        setSelectedDate(null);
+        setAvailableSlots([]);
+        setError(null);
+      }
+    }
+  }, [selectedDate, currentMonth]);
+
   const pricingPlans: PricingPlan[] = [
     {
       name: 'Single Dip',
@@ -297,6 +310,14 @@ export const BookingSection = () => {
       return;
     }
 
+    // Prevent selection of past dates
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    if (date < todayStart) {
+      setError('Cannot select dates in the past. Please choose today or a future date.');
+      return;
+    }
+
     // SECURITY: Removed debug logging - may contain sensitive booking data
 
     setIsLoadingTimeSlots(true);
@@ -343,34 +364,42 @@ export const BookingSection = () => {
     // Add the days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-      const isToday = day === new Date().getDate() && 
-                      currentMonth.getMonth() === new Date().getMonth() &&
-                      currentMonth.getFullYear() === new Date().getFullYear();
+      const today = new Date();
+      const isToday = day === today.getDate() && 
+                      currentMonth.getMonth() === today.getMonth() &&
+                      currentMonth.getFullYear() === today.getFullYear();
       const isSelected = isDateEqual(date, selectedDate);
+      
+      // Check if date is in the past (before today)
+      const isPastDate = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
       
       days.push(
         <div
           key={day}
-          onClick={() => handleDateSelect(date)}
+          onClick={isPastDate ? undefined : () => handleDateSelect(date)}
+          title={isPastDate ? 'Cannot book lessons for past dates' : isToday ? 'Today' : `Available for booking`}
           className={`
             aspect-square border flex items-center justify-center
-            cursor-pointer transition-all duration-200 rounded-lg
-            hover:border-[#1DA9C7] hover:shadow-md
-            ${isSelected 
-              ? 'bg-[#1DA9C7] text-white border-[#1DA9C7] shadow-md' 
-              : isToday 
-                ? 'bg-[#E8F7F7] border-[#1DA9C7]' 
-                : 'border-gray-200 hover:bg-[#E8F7F7]'
+            transition-all duration-200 rounded-lg
+            ${isPastDate 
+              ? 'cursor-not-allowed bg-gray-50 border-gray-100 opacity-50' 
+              : isSelected 
+                ? 'bg-[#1DA9C7] text-white border-[#1DA9C7] shadow-md cursor-pointer' 
+                : isToday 
+                  ? 'bg-[#E8F7F7] border-[#1DA9C7] cursor-pointer hover:border-[#1DA9C7] hover:shadow-md' 
+                  : 'border-gray-200 hover:bg-[#E8F7F7] cursor-pointer hover:border-[#1DA9C7] hover:shadow-md'
             }
           `}
         >
           <span className={`
             text-sm font-medium
-            ${isSelected 
-              ? 'text-white' 
-              : isToday 
-                ? 'text-[#1DA9C7]' 
-                : 'text-gray-700'
+            ${isPastDate 
+              ? 'text-gray-400' 
+              : isSelected 
+                ? 'text-white' 
+                : isToday 
+                  ? 'text-[#1DA9C7]' 
+                  : 'text-gray-700'
             }
           `}>
             {day}
@@ -689,7 +718,15 @@ export const BookingSection = () => {
                     newDate.setMonth(currentMonth.getMonth() - 1);
                     setCurrentMonth(newDate);
                   }}
-                  className="p-2 rounded-lg hover:bg-[#E8F7F7] transition-colors"
+                  disabled={currentMonth.getMonth() === new Date().getMonth() && currentMonth.getFullYear() === new Date().getFullYear()}
+                  title={currentMonth.getMonth() === new Date().getMonth() && currentMonth.getFullYear() === new Date().getFullYear() 
+                    ? 'Cannot view past months' 
+                    : 'Previous month'}
+                  className={`p-2 rounded-lg transition-colors ${
+                    currentMonth.getMonth() === new Date().getMonth() && currentMonth.getFullYear() === new Date().getFullYear()
+                      ? 'opacity-50 cursor-not-allowed text-gray-400'
+                      : 'hover:bg-[#E8F7F7] text-gray-700'
+                  }`}
                 >
                   ←
                 </button>
@@ -699,7 +736,8 @@ export const BookingSection = () => {
                     newDate.setMonth(currentMonth.getMonth() + 1);
                     setCurrentMonth(newDate);
                   }}
-                  className="p-2 rounded-lg hover:bg-[#E8F7F7] transition-colors"
+                  title="Next month"
+                  className="p-2 rounded-lg hover:bg-[#E8F7F7] transition-colors text-gray-700"
                 >
                   →
                 </button>
@@ -797,23 +835,13 @@ export const BookingSection = () => {
                                 className="bg-[#1DA9C7] text-white px-4 py-1 rounded hover:bg-[#1897B2] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 disabled={!slot?.available || spacesAvailable === 0}
                                 onClick={() => {
-                                  router.push({
-                                    pathname: '/booking-details',
-                                    query: {
-                                      beach: selectedBeach,
-                                      date: selectedDate?.toISOString(),
-                                      time: timeDisplay,
-                                      conditions: slot?.label || 'Unknown',
-                                      price: slot?.price || 0,
-                                      weather: slot?.sky || 'Unknown',
-                                      slotId: slot?.slotId || '',
-                                      startTime: slot?.startTime || '',
-                                      endTime: slot?.endTime || ''
-                                    }
-                                  });
+                                  router.push(`/booking-details?id=${slot?.slotId}`);
                                 }}
                               >
-                                {!slot?.available || spacesAvailable === 0 ? 'Full' : 'Book'}
+                                {!slot?.available || spacesAvailable === 0 ? 
+                                  (spacesAvailable === 0 ? 'Full' : 'Unavailable') : 
+                                  'Book'
+                                }
                               </button>
                             </div>
                           </div>

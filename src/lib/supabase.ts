@@ -51,6 +51,22 @@ export interface PushSubscriptionRow {
   created_at: string;
 }
 
+// Discount codes interface
+export interface DiscountCodeRow {
+  id: string;
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_amount: number;
+  description?: string;
+  min_order_amount?: number;
+  max_uses?: number;
+  current_uses: number;
+  is_active: boolean;
+  expires_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // New interface for time slots cache
 export interface TimeSlotsCache {
   id: string;
@@ -172,5 +188,39 @@ export const DATABASE_SCHEMAS = {
     -- RLS
     ALTER TABLE time_slots_cache ENABLE ROW LEVEL SECURITY;
     CREATE POLICY "Allow public access" ON time_slots_cache FOR ALL USING (true);
+  `,
+
+  // Discount codes table
+  discount_codes: `
+    CREATE TABLE IF NOT EXISTS discount_codes (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      code TEXT UNIQUE NOT NULL,
+      discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+      discount_amount DECIMAL(10,2) NOT NULL,
+      description TEXT,
+      min_order_amount DECIMAL(10,2) DEFAULT 0,
+      max_uses INTEGER,
+      current_uses INTEGER DEFAULT 0,
+      is_active BOOLEAN DEFAULT true,
+      expires_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    -- Create trigger for updated_at
+    CREATE TRIGGER update_discount_codes_updated_at 
+        BEFORE UPDATE ON discount_codes 
+        FOR EACH ROW 
+        EXECUTE FUNCTION update_updated_at_column();
+
+    -- Indexes for better performance
+    CREATE INDEX IF NOT EXISTS idx_discount_codes_code ON discount_codes(code);
+    CREATE INDEX IF NOT EXISTS idx_discount_codes_active ON discount_codes(is_active);
+    CREATE INDEX IF NOT EXISTS idx_discount_codes_expires_at ON discount_codes(expires_at);
+
+    -- RLS
+    ALTER TABLE discount_codes ENABLE ROW LEVEL SECURITY;
+    CREATE POLICY "Allow public read access" ON discount_codes FOR SELECT USING (true);
+    CREATE POLICY "Allow public update for usage tracking" ON discount_codes FOR UPDATE USING (true);
   `
 } 

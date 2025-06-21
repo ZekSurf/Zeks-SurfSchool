@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 interface CartItem {
   beach: string;
@@ -8,6 +8,8 @@ interface CartItem {
   weather: string;
   price: number;
   isPrivateLesson: boolean;
+  wetsuitSize?: string;
+  slotId?: string;
   discountedPrice?: number;
   bookingForOthers?: {
     name: string;
@@ -29,6 +31,29 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load cart from localStorage on mount
+  useEffect(() => {
+    const savedCart = localStorage.getItem('surfSchoolCart');
+    if (savedCart) {
+      try {
+        const parsedCart = JSON.parse(savedCart);
+        setItems(parsedCart);
+      } catch (error) {
+        console.error('Error loading cart from localStorage:', error);
+        localStorage.removeItem('surfSchoolCart');
+      }
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // Save cart to localStorage whenever items change (but only after initial load)
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('surfSchoolCart', JSON.stringify(items));
+    }
+  }, [items, isLoaded]);
 
   const applyDiscounts = (items: CartItem[]): CartItem[] => {
     return items.map((item, index) => {
@@ -54,6 +79,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = useCallback(() => {
     setItems([]);
+    localStorage.removeItem('surfSchoolCart');
   }, []);
 
   const calculateTotalPrice = useCallback(() => {

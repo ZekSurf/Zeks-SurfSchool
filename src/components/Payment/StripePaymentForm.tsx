@@ -82,6 +82,7 @@ const CheckoutForm: React.FC<PaymentFormProps> = ({
           <PaymentElement 
             options={{
               layout: 'tabs',
+              paymentMethodOrder: ['card'],
               fields: {
                 billingDetails: {
                   name: 'auto',
@@ -129,6 +130,13 @@ interface StripePaymentFormProps {
     phone: string;
   };
   items: any[];
+  discountInfo?: {
+    id: string;
+    code: string;
+    type: 'percentage' | 'fixed';
+    amount: number;
+    discountAmount: number;
+  };
   onSuccess: (paymentIntentId: string) => void;
   onError: (error: string) => void;
 }
@@ -137,6 +145,7 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
   amount,
   customerInfo,
   items,
+  discountInfo,
   onSuccess,
   onError,
 }) => {
@@ -148,6 +157,10 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
     // Create PaymentIntent as soon as the component loads
     const createPaymentIntent = async () => {
       try {
+        // Get contact info from localStorage if available
+        const contactInfoJson = localStorage.getItem('contactInfo');
+        const contactInfo = contactInfoJson ? JSON.parse(contactInfoJson) : {};
+
         const response = await fetch('/api/create-payment-intent', {
           method: 'POST',
           headers: {
@@ -157,6 +170,8 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
             amount,
             customerInfo,
             items,
+            contactInfo, // Include contact info with wetsuit size
+            discountInfo, // Include discount information
           }),
         });
 
@@ -176,7 +191,7 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
     };
 
     createPaymentIntent();
-  }, [amount, customerInfo, items, onError]);
+  }, [amount, customerInfo, items, discountInfo, onError]);
 
   if (isLoading) {
     return (

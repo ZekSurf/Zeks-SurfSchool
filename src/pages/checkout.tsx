@@ -7,7 +7,7 @@ import { StripePaymentForm } from '@/components/Payment/StripePaymentForm';
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, clearCart, calculateTotalPrice } = useCart();
+  const { items, removeItem, clearCart, calculateTotalPrice } = useCart();
   const [isProcessing, setIsProcessing] = useState(false);
   const total = calculateTotalPrice();
 
@@ -17,6 +17,18 @@ export default function CheckoutPage() {
     email: '',
     phone: '',
   });
+
+  // Discount code state
+  const [discountCode, setDiscountCode] = useState('');
+  const [appliedDiscount, setAppliedDiscount] = useState<{
+    id: string;
+    code: string;
+    amount: number;
+    type: 'percentage' | 'fixed';
+    description?: string;
+  } | null>(null);
+  const [discountError, setDiscountError] = useState<string | null>(null);
+  const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
 
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -61,8 +73,64 @@ export default function CheckoutPage() {
     }
   }, []);
 
-  // Calculate total with tax
-  const totalWithTax = total * 1.08;
+  // Handle discount code application with real API
+  const handleApplyDiscount = async () => {
+    if (!discountCode.trim()) {
+      setDiscountError('Please enter a discount code');
+      return;
+    }
+
+    setIsApplyingDiscount(true);
+    setDiscountError(null);
+
+    try {
+      const response = await fetch('/api/discount/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: discountCode,
+          orderAmount: total
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.discount) {
+        setAppliedDiscount({
+          id: data.discount.id,
+          code: data.discount.code,
+          amount: data.discount.amount,
+          type: data.discount.type,
+          description: data.discount.description
+        });
+        setDiscountError(null);
+      } else {
+        setDiscountError(data.error || 'Invalid discount code');
+      }
+    } catch (error) {
+      console.error('Error applying discount:', error);
+      setDiscountError('Unable to apply discount code. Please try again.');
+    }
+
+    setIsApplyingDiscount(false);
+  };
+
+  const handleRemoveDiscount = () => {
+    setAppliedDiscount(null);
+    setDiscountCode('');
+    setDiscountError(null);
+  };
+
+  // Calculate discount amount
+  const discountAmount = appliedDiscount 
+    ? appliedDiscount.type === 'percentage' 
+      ? (total * appliedDiscount.amount) / 100 
+      : appliedDiscount.amount
+    : 0;
+
+  const finalTotal = Math.max(0, total - discountAmount);
 
   return (
     <>
@@ -163,9 +231,16 @@ export default function CheckoutPage() {
                 {/* Stripe Payment Form */}
                 {customerInfo.firstName && customerInfo.lastName && customerInfo.email && customerInfo.phone && (
                   <StripePaymentForm
-                    amount={totalWithTax}
+                    amount={finalTotal}
                     customerInfo={customerInfo}
                     items={items}
+                    discountInfo={appliedDiscount ? {
+                      id: appliedDiscount.id,
+                      code: appliedDiscount.code,
+                      type: appliedDiscount.type,
+                      amount: appliedDiscount.amount,
+                      discountAmount: discountAmount
+                    } : undefined}
                     onSuccess={handlePaymentSuccess}
                     onError={handlePaymentError}
                   />
@@ -181,7 +256,7 @@ export default function CheckoutPage() {
                     {items.map((item, index) => (
                       <div key={index} className="py-4 border-b border-gray-100">
                         <div className="flex justify-between items-start mb-2">
-                          <div>
+                          <div className="flex-1">
                             <h3 className="font-medium">{item.beach}</h3>
                             <p className="text-sm text-gray-600">
                               {new Date(item.date).toLocaleDateString('en-US', {
@@ -191,7 +266,18 @@ export default function CheckoutPage() {
                               })} at {item.time}
                             </p>
                           </div>
-                          <span className="font-medium">${item.price}</span>
+                          <div className="flex items-center gap-3">
+                            <span className="font-medium">${item.price}</span>
+                            <button
+                              onClick={() => removeItem(index)}
+                              className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                              title="Remove lesson"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                         <div className="text-sm text-gray-600">
                           {item.isPrivateLesson ? 'Private Lesson' : 'Group Lesson'}
@@ -199,17 +285,94 @@ export default function CheckoutPage() {
                       </div>
                     ))}
 
-                    <div className="flex justify-between items-center py-2">
-                      <span className="text-gray-600">Subtotal</span>
-                      <span className="font-medium">${(total || 0).toFixed(2)}</span>
+                    {/* Discount Code Section */}
+                    <div className="py-4 border-t border-gray-200">
+                      {!appliedDiscount ? (
+                        <div className="space-y-3">
+                          <label htmlFor="discountCode" className="block text-sm font-medium text-gray-700">
+                            Discount Code
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              id="discountCode"
+                              value={discountCode}
+                              onChange={(e) => setDiscountCode(e.target.value)}
+                              onKeyPress={(e) => e.key === 'Enter' && handleApplyDiscount()}
+                              placeholder="Enter code"
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-[#1DA9C7] focus:border-[#1DA9C7] text-sm"
+                              disabled={isApplyingDiscount}
+                            />
+                            <button
+                              onClick={handleApplyDiscount}
+                              disabled={isApplyingDiscount || !discountCode.trim()}
+                              className="px-4 py-2 bg-[#1DA9C7] text-white rounded-lg hover:bg-[#1897B2] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium min-w-[80px] flex items-center justify-center"
+                            >
+                              {isApplyingDiscount ? (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                  <span className="text-xs">Applying</span>
+                                </div>
+                              ) : (
+                                'Apply'
+                              )}
+                            </button>
+                          </div>
+                          {discountError && (
+                            <p className="text-sm text-red-600 flex items-center gap-1">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                              {discountError}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              <div>
+                                <p className="text-sm font-medium text-green-800">Code Applied: {appliedDiscount.code}</p>
+                                <p className="text-xs text-green-600">
+                                  {appliedDiscount.type === 'percentage' 
+                                    ? `${appliedDiscount.amount}% off` 
+                                    : `$${appliedDiscount.amount} off`}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleRemoveDiscount}
+                              className="text-green-600 hover:text-green-800 transition-colors p-1"
+                              title="Remove discount"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex justify-between items-center py-2">
-                      <span className="text-gray-600">Tax</span>
-                      <span className="font-medium">${((total || 0) * 0.08).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2 text-lg font-semibold">
-                      <span>Total</span>
-                      <span>${totalWithTax.toFixed(2)}</span>
+
+                    {/* Pricing Breakdown */}
+                    <div className="space-y-2 py-4 border-t border-gray-200">
+                      <div className="flex justify-between items-center text-sm">
+                        <span>Subtotal</span>
+                        <span>${total.toFixed(2)}</span>
+                      </div>
+                      {appliedDiscount && (
+                        <div className="flex justify-between items-center text-sm text-green-600">
+                          <span>Discount ({appliedDiscount.code})</span>
+                          <span>-${discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center py-2 text-lg font-semibold border-t border-gray-200">
+                        <span>Total</span>
+                        <span>${finalTotal.toFixed(2)}</span>
+                      </div>
                     </div>
                   </div>
 

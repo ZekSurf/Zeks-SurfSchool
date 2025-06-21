@@ -15,7 +15,7 @@ export default async function handler(
   }
 
   try {
-    const { amount, currency = 'usd', customerInfo, items } = req.body;
+    const { amount, currency = 'usd', customerInfo, items, discountInfo } = req.body;
 
     // Validate required fields
     if (!amount || amount <= 0) {
@@ -25,6 +25,9 @@ export default async function handler(
     if (!customerInfo?.email) {
       return res.status(400).json({ error: 'Customer email is required' });
     }
+
+    // Get wetsuit size from localStorage contact info (if available)
+    const contactInfo = req.body.contactInfo || {};
 
     // Create or retrieve customer
     let customer;
@@ -51,11 +54,21 @@ export default async function handler(
       amount: amountInCents,
       currency,
       customer: customer.id,
+      payment_method_types: ['card'], // Only allow card payments
       metadata: {
         customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
         customerEmail: customerInfo.email,
         customerPhone: customerInfo.phone,
+        wetsuitSize: contactInfo.wetsuitSize || '', // Add wetsuit size to metadata
+        specialRequests: contactInfo.specialRequests || '',
         itemCount: items?.length || 0,
+        // Store discount information in metadata
+        ...(discountInfo && {
+          discountCode: discountInfo.code,
+          discountType: discountInfo.type,
+          discountAmount: discountInfo.amount.toString(),
+          originalAmount: (amount + discountInfo.discountAmount).toString(),
+        }),
         // Store booking details in metadata
         ...(items && {
           bookingDetails: JSON.stringify(items.map((item: any) => ({
@@ -64,11 +77,10 @@ export default async function handler(
             time: item.time,
             isPrivate: item.isPrivateLesson,
             price: item.price,
+            wetsuitSize: item.wetsuitSize || contactInfo.wetsuitSize || '', // Include wetsuit size
+            slotId: item.slotId, // Include the actual slot ID
           }))),
         }),
-      },
-      automatic_payment_methods: {
-        enabled: true,
       },
     });
 

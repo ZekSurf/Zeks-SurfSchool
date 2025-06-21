@@ -72,18 +72,31 @@ The webhook system automatically sends booking data to your n8n workflow:
   "customerName": "Billy Badass",
   "customerEmail": "johnpork@gmail.com",
   "customerPhone": "8357588363",
+  "wetsuitSize": "L",
+  "specialRequests": "First time surfing, please be patient!",
   "isPrivate": false,
   "lessonsBooked": 1,
   "slotData": {
     "beach": "Doheny",
     "date": "2025-06-14",
-    "slotId": "slot-2",
+    "slotId": "20250621T082843128-8yigvz5ax1xsop0z",
     "startTime": "2025-06-14T09:00:00-07:00",
     "endTime": "2025-06-14T10:30:00-07:00",
     "label": "Good",
     "price": 110,
-    "openSpaces": 1,
-    "available": true
+    "openSpaces": 3,
+    "available": true,
+    "wetsuitSize": "L"
+  },
+  "bookingUpdate": {
+    "slotId": "20250621T082843128-8yigvz5ax1xsop0z",
+    "beach": "Doheny",
+    "date": "2025-06-14",
+    "timeSlot": "9:00 AM - 10:00 AM",
+    "wasPrivateBooking": false,
+    "spacesReduced": "reduced_by_one",
+    "newOpenSpaces": 3,
+    "newAvailability": true
   },
   "timestamp": "2025-06-17T04:03:28.792Z"
 }
@@ -91,10 +104,35 @@ The webhook system automatically sends booking data to your n8n workflow:
 
 **Set up your n8n workflow to:**
 1. Receive webhook data at your N8N_BOOKING_WEBHOOK_URL
-2. Parse booking details (beach, date, time)
-3. Create Google Calendar event
-4. Send confirmation email
-5. Update your booking database
+2. Parse booking details (beach, date, time, wetsuit size)
+3. **Update slot availability** using the `bookingUpdate` object:
+   - For **group bookings**: Reduce `openSpaces` by 1
+   - For **private bookings**: Set `openSpaces` to 0 (slot becomes unavailable)
+   - Use the actual `slotId` (e.g., "20250621T082843128-8yigvz5ax1xsop0z") for accurate tracking
+4. Create Google Calendar event
+5. Send confirmation email
+6. Update your booking database with new availability
+
+## 🔒 Secure Booking URLs
+
+The booking system now uses secure, slot ID-based URLs to prevent tampering:
+
+**Old URL format (insecure):**
+```
+/booking-details?beach=Doheny&date=2025-06-22T07%3A00%3A00.000Z&time=9%3A00+AM+-+10%3A00+AM&conditions=Great&price=120&weather=Sunny&slotId=20250621T075023484-y6p03otdzyhzac91&startTime=2025-06-22T09%3A00%3A00-07%3A00&endTime=2025-06-22T10%3A30%3A00-07%3A00&availableSpaces=2
+```
+
+**New URL format (secure):**
+```
+/booking-details?id=20250621T075023484-y6p03otdzyhzac91
+```
+
+**Benefits:**
+- ✅ Users cannot manipulate booking data in the URL
+- ✅ All data is fetched securely from Supabase cache
+- ✅ Slot IDs are unique and tied to actual availability data
+- ✅ Prevents price manipulation and data tampering
+- ✅ Better user experience with cleaner URLs
 
 ## 🧪 Test Card Numbers
 

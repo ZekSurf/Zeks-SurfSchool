@@ -3,17 +3,14 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { Navbar } from '@/components/Layout/Navbar';
 import { useCart } from '@/context/CartContext';
-import { WetsuitSizeGuide } from '@/components/Home/WetsuitSizeGuide';
 
 export default function CartPage() {
   const router = useRouter();
   const { items, removeItem, clearCart, calculateTotalPrice } = useCart();
-  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
   const [contactInfo, setContactInfo] = useState({
     name: '',
     email: '',
     phone: '',
-    wetsuitSize: '',
     specialRequests: ''
   });
 
@@ -47,8 +44,6 @@ export default function CartPage() {
       </Head>
 
       <Navbar onBookClick={scrollToBooking} />
-      
-      <WetsuitSizeGuide isOpen={isSizeGuideOpen} onClose={() => setIsSizeGuideOpen(false)} />
 
       <main className="pt-16 min-[427px]:pt-20 lg:pt-24 min-h-screen bg-neutral">
         <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
@@ -128,6 +123,12 @@ export default function CartPage() {
                         <span>Lesson For:</span>
                         <span>{item.bookingForOthers?.name || 'You'}</span>
                       </div>
+                      {item.wetsuitSize && (
+                        <div className="flex justify-between text-gray-600">
+                          <span>Wetsuit Size:</span>
+                          <span>{item.wetsuitSize}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between font-semibold text-gray-800 pt-2 border-t">
                         <span>Price:</span>
                         <div className="text-right">
@@ -212,6 +213,8 @@ export default function CartPage() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
                     />
                   </div>
+
+
 
                   <div>
                     <label htmlFor="specialRequests" className="block text-sm font-medium text-gray-700 mb-1">

@@ -233,6 +233,81 @@ class BookingService {
   public async invalidateCacheForBooking(date: string): Promise<void> {
     await supabaseCacheService.invalidateCacheForBooking(date);
   }
+
+  /**
+   * Update slot availability after booking confirmation
+   * This method fetches current slot data and calculates new availability
+   */
+  public async updateSlotAvailability(
+    beach: string, 
+    date: string, 
+    timeSlot: string, 
+    isPrivateBooking: boolean
+  ): Promise<{ openSpaces: number; available: boolean } | null> {
+    try {
+      // Parse the date string to Date object for fetchAvailableSlots
+      const bookingDate = new Date(date + 'T12:00:00'); // Use noon to avoid timezone issues
+      
+      // Fetch current slot data
+      const response = await this.fetchAvailableSlots(beach, bookingDate, true); // Force refresh
+      
+      if (!response || !response.slots) {
+        console.error('No slot data available for update');
+        return null;
+      }
+
+      // Find the specific slot that was booked
+      const targetSlot = response.slots.find(slot => {
+        const slotTimeFormatted = this.formatTimeSlot(slot.startTime, slot.endTime);
+        return slotTimeFormatted === timeSlot;
+      });
+
+      if (!targetSlot) {
+        console.error('Target slot not found for update');
+        return null;
+      }
+
+      // Calculate new availability
+      const currentSpaces = parseInt(targetSlot.openSpaces) || 0;
+      const newOpenSpaces = isPrivateBooking ? 0 : Math.max(0, currentSpaces - 1);
+      const isStillAvailable = newOpenSpaces > 0;
+
+      // Return the updated values
+      return {
+        openSpaces: newOpenSpaces,
+        available: isStillAvailable
+      };
+    } catch (error) {
+      console.error('Error updating slot availability:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Helper method to format time slot for comparison
+   */
+  private formatTimeSlot(startTime: string, endTime: string): string {
+    try {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      
+      // Subtract 30 minutes from end time to match display format
+      const adjustedEnd = new Date(end.getTime() - (30 * 60 * 1000));
+      
+      const formatTime = (date: Date) => {
+        return date.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+      };
+
+      return `${formatTime(start)} - ${formatTime(adjustedEnd)}`;
+    } catch (error) {
+      console.error('Error formatting time slot:', error);
+      return '';
+    }
+  }
 }
 
 export const bookingService = new BookingService(); 

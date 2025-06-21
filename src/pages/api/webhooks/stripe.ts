@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { buffer } from 'micro';
 import { bookingService } from '@/lib/bookingService';
 import { supabaseStaffService } from '@/lib/supabaseStaffService';
+import { discountService } from '@/lib/discountService';
 import { CompletedBooking } from '@/types/booking';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -149,27 +150,97 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   // Parse the time slot
   const { startDateTime, endDateTime } = parseTimeSlot(firstBooking.time, firstBooking.date);
   
+  // Calculate remaining open spaces based on booking type using bookingService
+  const isPrivateLesson = firstBooking.isPrivate || false;
+  let remainingOpenSpaces = 0;
+  let isSlotStillAvailable = false;
+  
+  try {
+    // Get accurate availability data from booking service
+    const availabilityUpdate = await bookingService.updateSlotAvailability(
+      firstBooking.beach,
+      new Date(firstBooking.date).toISOString().split('T')[0],
+      firstBooking.time,
+      isPrivateLesson
+    );
+    
+    if (availabilityUpdate) {
+      remainingOpenSpaces = availabilityUpdate.openSpaces;
+      isSlotStillAvailable = availabilityUpdate.available;
+    } else {
+      // Fallback to default calculation if service fails
+      console.warn('Using fallback availability calculation');
+      const defaultOpenSpaces = 4; // Default assumption
+      remainingOpenSpaces = isPrivateLesson ? 0 : Math.max(0, defaultOpenSpaces - 1);
+      isSlotStillAvailable = remainingOpenSpaces > 0;
+    }
+  } catch (error) {
+    console.error('Error getting slot availability update:', error);
+    // Fallback calculation
+    const defaultOpenSpaces = 4;
+    remainingOpenSpaces = isPrivateLesson ? 0 : Math.max(0, defaultOpenSpaces - 1);
+    isSlotStillAvailable = remainingOpenSpaces > 0;
+  }
+  
+  // Handle discount information if present
+  let discountInfo = null;
+  if (metadata.discountCode) {
+    discountInfo = {
+      code: metadata.discountCode,
+      type: metadata.discountType,
+      amount: parseFloat(metadata.discountAmount || '0'),
+      originalAmount: parseFloat(metadata.originalAmount || '0'),
+      discountSavings: parseFloat(metadata.originalAmount || '0') - (paymentIntent.amount / 100)
+    };
+    
+    // Track discount usage (this was already done during validation, but we can log it)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Discount applied: ${discountInfo.code} - $${discountInfo.discountSavings} saved`);
+    }
+  }
+
   // Create the formatted booking data for n8n
   const bookingData = {
     paymentIntentId: paymentIntent.id,
     confirmationNumber: confirmationNumber,
-    amount: paymentIntent.amount / 100, // Convert from cents
+    amount: paymentIntent.amount / 100, // Convert from cents (final amount after discount)
+    originalAmount: discountInfo ? discountInfo.originalAmount : (paymentIntent.amount / 100),
     currency: paymentIntent.currency,
     customerName: metadata.customerName,
     customerEmail: metadata.customerEmail,
     customerPhone: metadata.customerPhone,
-    isPrivate: firstBooking.isPrivate || false,
+    wetsuitSize: metadata.wetsuitSize || '', // Add wetsuit size to n8n payload
+    specialRequests: metadata.specialRequests || '',
+    // Discount information
+    discountApplied: !!discountInfo,
+    discountCode: discountInfo?.code || null,
+    discountType: discountInfo?.type || null,
+    discountAmount: discountInfo?.amount || 0,
+    discountSavings: discountInfo?.discountSavings || 0,
+    isPrivate: isPrivateLesson,
     lessonsBooked: bookingDetails.length,
     slotData: {
       beach: firstBooking.beach,
       date: new Date(firstBooking.date).toISOString().split('T')[0], // YYYY-MM-DD format
-      slotId: `slot-${Math.floor(Math.random() * 10) + 1}`, // Generate slot ID
+      slotId: firstBooking.slotId || `fallback-${Date.now()}`, // Use actual slot ID or fallback
       startTime: startDateTime,
       endTime: endDateTime,
       label: "Good", // Default label - you can enhance this based on conditions
       price: firstBooking.price,
-      openSpaces: 1,
-      available: true
+      openSpaces: remainingOpenSpaces, // Updated open spaces after booking
+      available: isSlotStillAvailable, // Updated availability
+      wetsuitSize: firstBooking.wetsuitSize || metadata.wetsuitSize || '' // Wetsuit size from booking or customer
+    },
+    // Additional booking information for n8n to handle availability updates
+    bookingUpdate: {
+      slotId: firstBooking.slotId || `fallback-${Date.now()}`, // Use actual slot ID
+      beach: firstBooking.beach,
+      date: new Date(firstBooking.date).toISOString().split('T')[0],
+      timeSlot: firstBooking.time,
+      wasPrivateBooking: isPrivateLesson,
+      spacesReduced: isPrivateLesson ? 'set_to_zero' : 'reduced_by_one',
+      newOpenSpaces: remainingOpenSpaces,
+      newAvailability: isSlotStillAvailable
     },
     timestamp: new Date().toISOString()
   };
@@ -319,6 +390,19 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     }
     const bookingDate = new Date(firstBooking.date).toISOString().split('T')[0]; // YYYY-MM-DD format
     await bookingService.invalidateCacheForBooking(bookingDate);
+    
+    // Force a fresh fetch of the updated slot data to populate cache with new availability
+    try {
+      const bookingDateObj = new Date(firstBooking.date + 'T12:00:00');
+      await bookingService.fetchAvailableSlots(firstBooking.beach, bookingDateObj, true);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ Cache refreshed with updated availability');
+      }
+    } catch (refreshError) {
+      console.error('⚠️ Warning: Failed to refresh cache after booking:', refreshError);
+      // Don't throw error here - cache refresh failure shouldn't break webhook
+    }
+    
     if (process.env.NODE_ENV !== 'production') {
       // SECURITY: Removed cache invalidation logging - may contain booking data
     }
