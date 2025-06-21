@@ -144,36 +144,22 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   // Parse the time slot
   const { startDateTime, endDateTime } = parseTimeSlot(firstBooking.time, firstBooking.date);
   
-  // Calculate remaining open spaces based on booking type using bookingService
+  // Get original cached openSpaces value (before booking)
   const isPrivateLesson = firstBooking.isPrivate || false;
-  let remainingOpenSpaces = 0;
-  let isSlotStillAvailable = false;
+  const originalOpenSpaces = firstBooking.openSpaces || 4; // Use the cached value from booking data
+  const originalAvailable = firstBooking.available !== undefined ? firstBooking.available : true;
   
+  // Update slot availability in the background (for cache management)
   try {
-    // Get accurate availability data from booking service
-    const availabilityUpdate = await bookingService.updateSlotAvailability(
+    await bookingService.updateSlotAvailability(
       firstBooking.beach,
       new Date(firstBooking.date).toISOString().split('T')[0],
       firstBooking.time,
       isPrivateLesson
     );
-    
-    if (availabilityUpdate) {
-      remainingOpenSpaces = availabilityUpdate.openSpaces;
-      isSlotStillAvailable = availabilityUpdate.available;
-    } else {
-      // Fallback to default calculation if service fails
-      console.warn('Using fallback availability calculation');
-      const defaultOpenSpaces = 4; // Default assumption
-      remainingOpenSpaces = isPrivateLesson ? 0 : Math.max(0, defaultOpenSpaces - 1);
-      isSlotStillAvailable = remainingOpenSpaces > 0;
-    }
   } catch (error) {
-    console.error('Error getting slot availability update:', error);
-    // Fallback calculation
-    const defaultOpenSpaces = 4;
-    remainingOpenSpaces = isPrivateLesson ? 0 : Math.max(0, defaultOpenSpaces - 1);
-    isSlotStillAvailable = remainingOpenSpaces > 0;
+    console.error('Error updating slot availability:', error);
+    // Continue processing - availability update failure shouldn't break webhook
   }
   
   // Handle discount information if present
@@ -202,7 +188,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     customerName: metadata.customerName,
     customerEmail: metadata.customerEmail,
     customerPhone: metadata.customerPhone,
-    wetsuitSize: metadata.wetsuitSize || '',
+    wetsuitSize: firstBooking.wetsuitSize || metadata.wetsuitSize || '',
     specialRequests: metadata.specialRequests || '',
     discountApplied: !!discountInfo,
     discountCode: discountInfo?.code || null,
@@ -219,8 +205,8 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
       endTime: endDateTime,
       label: "Good", // Default label - you can enhance this based on conditions
       price: firstBooking.price,
-      openSpaces: remainingOpenSpaces, // Updated open spaces after booking
-      available: isSlotStillAvailable // Updated availability
+      openSpaces: originalOpenSpaces, // Original cached open spaces value
+      available: originalAvailable // Original cached availability value
     },
     timestamp: new Date().toISOString()
   };
