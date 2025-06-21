@@ -149,18 +149,8 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   const originalOpenSpaces = firstBooking.openSpaces || 4; // Use the cached value from booking data
   const originalAvailable = firstBooking.available !== undefined ? firstBooking.available : true;
   
-  // Update slot availability in the background (for cache management)
-  try {
-    await bookingService.updateSlotAvailability(
-      firstBooking.beach,
-      new Date(firstBooking.date).toISOString().split('T')[0],
-      firstBooking.time,
-      isPrivateLesson
-    );
-  } catch (error) {
-    console.error('Error updating slot availability:', error);
-    // Continue processing - availability update failure shouldn't break webhook
-  }
+  // Note: Slot availability updates are handled by n8n workflow
+  // No need to call booking service here as it would trigger the time slots webhook unnecessarily
   
   // Handle discount information if present
   let discountInfo = null;
@@ -349,28 +339,13 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     // Don't throw error here - staff system failure shouldn't break webhook
   }
   
-  // Clear booking cache for this date and beach to ensure fresh availability data
+  // Cache invalidation only (no fresh fetch to avoid triggering time slots webhook)
   try {
-    if (process.env.NODE_ENV !== 'production') {
-      // SECURITY: Removed cache invalidation logging - may contain booking data
-    }
     const bookingDate = new Date(firstBooking.date).toISOString().split('T')[0]; // YYYY-MM-DD format
     await bookingService.invalidateCacheForBooking(bookingDate);
     
-    // Force a fresh fetch of the updated slot data to populate cache with new availability
-    try {
-      const bookingDateObj = new Date(firstBooking.date + 'T12:00:00');
-      await bookingService.fetchAvailableSlots(firstBooking.beach, bookingDateObj, true);
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ Cache refreshed with updated availability');
-      }
-    } catch (refreshError) {
-      console.error('⚠️ Warning: Failed to refresh cache after booking:', refreshError);
-      // Don't throw error here - cache refresh failure shouldn't break webhook
-    }
-    
     if (process.env.NODE_ENV !== 'production') {
-      // SECURITY: Removed cache invalidation logging - may contain booking data
+      console.log('✅ Cache invalidated for booking date');
     }
   } catch (error) {
     console.error('❌ Error invalidating booking cache:', error);
