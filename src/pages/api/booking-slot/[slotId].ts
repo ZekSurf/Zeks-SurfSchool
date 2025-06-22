@@ -134,6 +134,9 @@ function formatTimeSlot(startTime: string, endTime: string): string {
     const start = new Date(startTime);
     const end = new Date(endTime);
     
+    // Subtract 30 minutes from the end time
+    end.setMinutes(end.getMinutes() - 30);
+    
     const formatTime = (date: Date) => {
       return date.toLocaleTimeString('en-US', {
         hour: 'numeric',

@@ -365,13 +365,16 @@ export const BookingSection = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
       const today = new Date();
-      const isToday = day === today.getDate() && 
-                      currentMonth.getMonth() === today.getMonth() &&
-                      currentMonth.getFullYear() === today.getFullYear();
+      
+      // Create normalized dates for comparison (set to noon to avoid timezone issues)
+      const normalizedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day, 12, 0, 0, 0);
+      const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0, 0);
+      
+      const isToday = normalizedDate.getTime() === normalizedToday.getTime();
       const isSelected = isDateEqual(date, selectedDate);
       
       // Check if date is in the past (before today)
-      const isPastDate = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const isPastDate = normalizedDate < normalizedToday;
       
       days.push(
         <div

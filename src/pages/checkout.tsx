@@ -58,20 +58,7 @@ export default function CheckoutPage() {
     }
   };
 
-  useEffect(() => {
-    // Load contact info from localStorage
-    const savedContactInfo = localStorage.getItem('contactInfo');
-    if (savedContactInfo) {
-      const { name, email, phone } = JSON.parse(savedContactInfo);
-      const [firstName, ...lastNameParts] = name.split(' ');
-      setCustomerInfo({
-        firstName: firstName || '',
-        lastName: lastNameParts.join(' ') || '',
-        email: email || '',
-        phone: phone || '',
-      });
-    }
-  }, []);
+  // Removed localStorage loading to ensure form is always empty on page load
 
   // Handle discount code application with real API
   const handleApplyDiscount = async () => {
