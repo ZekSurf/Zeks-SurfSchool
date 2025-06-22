@@ -110,39 +110,52 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
 
   const firstBooking = bookingDetails[0];
   
-  // Helper function to parse time slot and convert to datetime
-  const parseTimeSlot = (timeString: string, dateString: string) => {
-    // e.g., "9:00 AM - 10:30 AM" or "9:00 - 10:30"
-    const [startTime, endTime] = timeString.split(' - ');
-    const dateOnly = new Date(dateString).toISOString().split('T')[0]; // YYYY-MM-DD format
-    
-    // Parse start time
-    const startTimeFormatted = parseTime(startTime);
-    const startDateTime = `${dateOnly}T${startTimeFormatted}:00-07:00`;
-    
-    // Parse end time properly (no buffer needed - lesson duration is already correct)
-    const endTimeFormatted = parseTime(endTime);
-    const endDateTime = `${dateOnly}T${endTimeFormatted}:00-07:00`;
-    
-    return { startDateTime, endDateTime };
-  };
+  // Use the original backend startTime and endTime from the slot data if available
+  // These contain the full 1.5-hour duration needed for instructor setup/drive time
+  let startDateTime, endDateTime;
   
-  // Helper function to parse "9:00 AM" format to "09:00"
-  const parseTime = (timeStr: string) => {
-    const [time, period] = timeStr.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
+  if (firstBooking.startTime && firstBooking.endTime) {
+    // Use the original backend times (1.5 hours) directly
+    startDateTime = firstBooking.startTime;
+    endDateTime = firstBooking.endTime;
+  } else {
+    // Fallback: parse from display time and add 30 minutes buffer to end time
+    const parseTimeSlot = (timeString: string, dateString: string) => {
+      // e.g., "9:00 AM - 10:00 AM" (display format)
+      const [startTime, endTime] = timeString.split(' - ');
+      const dateOnly = new Date(dateString).toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      // Parse start time
+      const startTimeFormatted = parseTime(startTime);
+      const startDateTime = `${dateOnly}T${startTimeFormatted}:00-07:00`;
+      
+      // Parse end time and add 30 minutes for instructor setup/drive time
+      const endTimeFormatted = parseTime(endTime);
+      const endDate = new Date(`${dateOnly}T${endTimeFormatted}:00-07:00`);
+      endDate.setMinutes(endDate.getMinutes() + 30); // Add 30 minutes buffer
+      const endDateTime = endDate.toISOString().replace('Z', '-07:00');
+      
+      return { startDateTime, endDateTime };
+    };
     
-    if (period === 'PM' && hours !== 12) {
-      hours += 12;
-    } else if (period === 'AM' && hours === 12) {
-      hours = 0;
-    }
+    // Helper function to parse "9:00 AM" format to "09:00"
+    const parseTime = (timeStr: string) => {
+      const [time, period] = timeStr.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      
+      if (period === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (period === 'AM' && hours === 12) {
+        hours = 0;
+      }
+      
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    };
     
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-  };
-  
-  // Parse the time slot
-  const { startDateTime, endDateTime } = parseTimeSlot(firstBooking.time, firstBooking.date);
+    const parsed = parseTimeSlot(firstBooking.time, firstBooking.date);
+    startDateTime = parsed.startDateTime;
+    endDateTime = parsed.endDateTime;
+  }
   
   // Get original cached openSpaces value (before booking)
   const isPrivateLesson = firstBooking.isPrivate || false;

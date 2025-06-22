@@ -159,7 +159,9 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
     const itemData = {
       beach: slotData.beach,
       date: slotData.date,
-      time: slotData.time,
+      time: slotData.time, // Display time (1 hour for user)
+      startTime: slotData.startTime, // Original backend start time
+      endTime: slotData.endTime, // Original backend end time (1.5 hours)
       conditions: slotData.conditions,
       weather: slotData.weather,
       price: totalPrice,

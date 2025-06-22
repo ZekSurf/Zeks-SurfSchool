@@ -3,7 +3,9 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 interface CartItem {
   beach: string;
   date: string;
-  time: string;
+  time: string; // Display time (1 hour for user)
+  startTime?: string; // Original backend start time
+  endTime?: string; // Original backend end time (1.5 hours)
   conditions: string;
   weather: string;
   price: number;

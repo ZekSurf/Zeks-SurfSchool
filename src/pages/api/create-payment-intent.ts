@@ -74,7 +74,9 @@ export default async function handler(
           bookingDetails: JSON.stringify(items.map((item: any) => ({
             beach: item.beach,
             date: item.date,
-            time: item.time,
+            time: item.time, // Display time (1 hour)
+            startTime: item.startTime, // Original backend start time
+            endTime: item.endTime, // Original backend end time (1.5 hours)
             isPrivate: item.isPrivateLesson,
             price: item.price,
             wetsuitSize: item.wetsuitSize || contactInfo.wetsuitSize || '', // Include wetsuit size
