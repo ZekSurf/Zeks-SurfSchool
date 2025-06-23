@@ -360,20 +360,37 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     // Don't throw error here - cache clearing failure shouldn't break webhook
   }
 
-  // Clean up temporary booking record after successful processing
+  // Store confirmation number for confirmation page retrieval
   if (metadata.bookingRef) {
     try {
-      await supabase
+      // Get current temp booking data
+      const { data: tempBooking, error: fetchError } = await supabase
         .from('temp_bookings')
-        .delete()
-        .eq('id', metadata.bookingRef);
-      
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ Temporary booking record cleaned up');
+        .select('*')
+        .eq('id', metadata.bookingRef)
+        .single();
+
+      if (!fetchError && tempBooking) {
+        // Add confirmation number and payment intent ID to the existing data
+        const updatedData = {
+          ...tempBooking,
+          confirmation_number: confirmationNumber,
+          payment_intent_id: paymentIntent.id,
+          booking_status: 'completed'
+        };
+
+        await supabase
+          .from('temp_bookings')
+          .update(updatedData)
+          .eq('id', metadata.bookingRef);
+        
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('✅ Confirmation number stored for retrieval');
+        }
       }
     } catch (error) {
-      console.error('❌ Error cleaning up temporary booking:', error);
-      // Don't throw error here - cleanup failure shouldn't break webhook
+      console.error('❌ Error storing confirmation number:', error);
+      // Don't throw error here - this shouldn't break webhook
     }
   }
 }

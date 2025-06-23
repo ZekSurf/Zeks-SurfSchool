@@ -9,6 +9,7 @@ export default function ConfirmationPage() {
   const router = useRouter();
   const [confirmationNumber, setConfirmationNumber] = useState('');
   const [paymentIntentId, setPaymentIntentId] = useState('');
+  const [debugInfo, setDebugInfo] = useState('');
 
   const scrollToBooking = () => {
     const bookingSection = document.getElementById('booking');
@@ -18,26 +19,76 @@ export default function ConfirmationPage() {
   };
 
   useEffect(() => {
-    // Generate a random confirmation number
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    const confirmNumber = `SURF-${timestamp}-${random}`;
-    setConfirmationNumber(confirmNumber);
-
     // Get payment intent ID from URL parameters
     const { payment_intent } = router.query;
     if (payment_intent && typeof payment_intent === 'string') {
       setPaymentIntentId(payment_intent);
+      
+      // Fetch the real confirmation number from the database with retry logic
+      const fetchConfirmationWithRetry = async (retryCount = 0) => {
+        setDebugInfo(`Fetching confirmation for payment intent: ${payment_intent} (attempt ${retryCount + 1})`);
+        
+        try {
+          const response = await fetch(`/api/booking/confirmation?payment_intent=${payment_intent}`);
+          setDebugInfo(prev => prev + ` | Response status: ${response.status}`);
+          
+          const data = await response.json();
+          setDebugInfo(prev => prev + ` | Response data: ${JSON.stringify(data)}`);
+          
+          if (data.confirmationNumber) {
+            setConfirmationNumber(data.confirmationNumber);
+            setDebugInfo(prev => prev + ` | Using real confirmation: ${data.confirmationNumber}`);
+            return;
+          }
+          
+          // If no confirmation found and we haven't retried enough, try again
+          if (response.status === 404 && retryCount < 3) {
+            setDebugInfo(prev => prev + ` | Retrying in 2 seconds...`);
+            setTimeout(() => fetchConfirmationWithRetry(retryCount + 1), 2000);
+            return;
+          }
+          
+          // Fallback after retries
+          const timestamp = Date.now().toString().slice(-6);
+          const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+          const confirmNumber = `SURF-${timestamp}-${random}`;
+          setConfirmationNumber(confirmNumber);
+          setDebugInfo(prev => prev + ` | Using fallback confirmation after retries: ${confirmNumber}`);
+          
+                 } catch (error) {
+           console.error('Error fetching confirmation number:', error);
+           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+           setDebugInfo(prev => prev + ` | Error: ${errorMessage}`);
+           
+           // Fallback: Generate a random confirmation number if API fails
+           const timestamp = Date.now().toString().slice(-6);
+           const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+           const confirmNumber = `SURF-${timestamp}-${random}`;
+           setConfirmationNumber(confirmNumber);
+           setDebugInfo(prev => prev + ` | Using fallback after error: ${confirmNumber}`);
+         }
+      };
+      
+      fetchConfirmationWithRetry();
+    } else {
+      // No payment intent ID, generate fallback confirmation number
+      const timestamp = Date.now().toString().slice(-6);
+      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      const confirmNumber = `SURF-${timestamp}-${random}`;
+      setConfirmationNumber(confirmNumber);
     }
 
-    // Google Ads Conversion Tracking
-    if (typeof window !== 'undefined' && window.gtag) {
+  }, [router.query]);
+
+  // Separate useEffect for Google Ads tracking when confirmation number is available
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.gtag && confirmationNumber) {
       // Track the conversion
       window.gtag('event', 'conversion', {
         'send_to': 'AW-17228135601/xxxxx-xxxxx', // You'll need to replace with your actual conversion ID
         'value': 100, // You can dynamically set this based on booking value
         'currency': 'USD',
-        'transaction_id': confirmNumber
+        'transaction_id': confirmationNumber
       });
 
       // Track as a custom event for optimization
@@ -47,7 +98,7 @@ export default function ConfirmationPage() {
         'value': 100
       });
     }
-  }, [router.query]);
+  }, [confirmationNumber]);
 
   return (
     <>
@@ -82,6 +133,12 @@ export default function ConfirmationPage() {
                 <div className="mb-4">
                   <p className="text-sm text-gray-500 mb-1">Payment ID:</p>
                   <p className="text-sm font-mono text-gray-600 break-all">{paymentIntentId}</p>
+                </div>
+              )}
+              {process.env.NODE_ENV === 'development' && debugInfo && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <p className="text-sm text-yellow-800 font-semibold">Debug Info:</p>
+                  <p className="text-xs text-yellow-700 break-all">{debugInfo}</p>
                 </div>
               )}
               <div className="text-left space-y-3 text-gray-600">
