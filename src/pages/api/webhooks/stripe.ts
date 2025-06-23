@@ -258,6 +258,12 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
         // SECURITY: Removed confirmation number logging - contains booking data
       }
       
+      // Store booking UUID for confirmation page (available in supabaseResult.booking.id)
+      const bookingUuid = supabaseResult.booking?.id;
+      if (process.env.NODE_ENV !== 'production' && bookingUuid) {
+        console.log('✅ Booking UUID available for confirmation:', bookingUuid);
+      }
+      
       // Send push notification to staff devices
       try {
         if (process.env.NODE_ENV !== 'production') {
@@ -360,39 +366,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     // Don't throw error here - cache clearing failure shouldn't break webhook
   }
 
-  // Store confirmation number for confirmation page retrieval
-  if (metadata.bookingRef) {
-    try {
-      // Get current temp booking data
-      const { data: tempBooking, error: fetchError } = await supabase
-        .from('temp_bookings')
-        .select('*')
-        .eq('id', metadata.bookingRef)
-        .single();
 
-      if (!fetchError && tempBooking) {
-        // Add confirmation number and payment intent ID to the existing data
-        const updatedData = {
-          ...tempBooking,
-          confirmation_number: confirmationNumber,
-          payment_intent_id: paymentIntent.id,
-          booking_status: 'completed'
-        };
-
-        await supabase
-          .from('temp_bookings')
-          .update(updatedData)
-          .eq('id', metadata.bookingRef);
-        
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('✅ Confirmation number stored for retrieval');
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error storing confirmation number:', error);
-      // Don't throw error here - this shouldn't break webhook
-    }
-  }
 }
 
 async function handleFailedPayment(paymentIntent: Stripe.PaymentIntent) {

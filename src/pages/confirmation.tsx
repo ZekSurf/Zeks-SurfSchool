@@ -18,33 +18,49 @@ export default function ConfirmationPage() {
     }
   };
 
-  useEffect(() => {
-    // Get payment intent ID from URL parameters
-    const { payment_intent } = router.query;
-    if (payment_intent && typeof payment_intent === 'string') {
-      setPaymentIntentId(payment_intent);
+    useEffect(() => {
+    // Get parameters from URL - support both booking_id (UUID) and payment_intent
+    const { booking_id, payment_intent } = router.query;
+    
+    if ((booking_id && typeof booking_id === 'string') || (payment_intent && typeof payment_intent === 'string')) {
+      // Set payment intent ID for display if available
+      if (payment_intent && typeof payment_intent === 'string') {
+        setPaymentIntentId(payment_intent);
+      }
       
-      // Fetch the real confirmation number from the database with retry logic
-      const fetchConfirmationWithRetry = async (retryCount = 0) => {
-        setDebugInfo(`Fetching confirmation for payment intent: ${payment_intent} (attempt ${retryCount + 1})`);
+      // Fetch the booking data with retry logic
+      const fetchBookingWithRetry = async (retryCount = 0) => {
+        const identifier = booking_id || payment_intent;
+        const identifierType = booking_id ? 'booking ID' : 'payment intent';
+        
+        setDebugInfo(`Fetching booking by ${identifierType}: ${identifier} (attempt ${retryCount + 1})`);
         
         try {
-          const response = await fetch(`/api/booking/confirmation?payment_intent=${payment_intent}`);
+          // Use the new API endpoint that can handle both booking UUID and payment intent
+          let apiUrl = '/api/booking/get-by-id?';
+          if (booking_id) {
+            apiUrl += `booking_id=${booking_id}`;
+          } else if (payment_intent) {
+            apiUrl += `payment_intent=${payment_intent}`;
+          }
+          
+          const response = await fetch(apiUrl);
           setDebugInfo(prev => prev + ` | Response status: ${response.status}`);
           
           const data = await response.json();
           setDebugInfo(prev => prev + ` | Response data: ${JSON.stringify(data)}`);
           
-          if (data.confirmationNumber) {
-            setConfirmationNumber(data.confirmationNumber);
-            setDebugInfo(prev => prev + ` | Using real confirmation: ${data.confirmationNumber}`);
+          if (data.success && data.booking) {
+            setConfirmationNumber(data.booking.confirmationNumber);
+            setPaymentIntentId(data.booking.paymentIntentId); // Set if not already set
+            setDebugInfo(prev => prev + ` | Using real confirmation: ${data.booking.confirmationNumber}`);
             return;
           }
           
-          // If no confirmation found and we haven't retried enough, try again
+          // If no booking found and we haven't retried enough, try again
           if (response.status === 404 && retryCount < 3) {
             setDebugInfo(prev => prev + ` | Retrying in 2 seconds...`);
-            setTimeout(() => fetchConfirmationWithRetry(retryCount + 1), 2000);
+            setTimeout(() => fetchBookingWithRetry(retryCount + 1), 2000);
             return;
           }
           
@@ -55,27 +71,28 @@ export default function ConfirmationPage() {
           setConfirmationNumber(confirmNumber);
           setDebugInfo(prev => prev + ` | Using fallback confirmation after retries: ${confirmNumber}`);
           
-                 } catch (error) {
-           console.error('Error fetching confirmation number:', error);
-           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-           setDebugInfo(prev => prev + ` | Error: ${errorMessage}`);
-           
-           // Fallback: Generate a random confirmation number if API fails
-           const timestamp = Date.now().toString().slice(-6);
-           const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-           const confirmNumber = `SURF-${timestamp}-${random}`;
-           setConfirmationNumber(confirmNumber);
-           setDebugInfo(prev => prev + ` | Using fallback after error: ${confirmNumber}`);
-         }
+        } catch (error) {
+          console.error('Error fetching booking:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          setDebugInfo(prev => prev + ` | Error: ${errorMessage}`);
+          
+          // Fallback: Generate a random confirmation number if API fails
+          const timestamp = Date.now().toString().slice(-6);
+          const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+          const confirmNumber = `SURF-${timestamp}-${random}`;
+          setConfirmationNumber(confirmNumber);
+          setDebugInfo(prev => prev + ` | Using fallback after error: ${confirmNumber}`);
+        }
       };
       
-      fetchConfirmationWithRetry();
+      fetchBookingWithRetry();
     } else {
-      // No payment intent ID, generate fallback confirmation number
+      // No valid identifier, generate fallback confirmation number
       const timestamp = Date.now().toString().slice(-6);
       const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
       const confirmNumber = `SURF-${timestamp}-${random}`;
       setConfirmationNumber(confirmNumber);
+      setDebugInfo('No booking ID or payment intent provided');
     }
 
   }, [router.query]);
@@ -139,6 +156,12 @@ export default function ConfirmationPage() {
                 <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
                   <p className="text-sm text-yellow-800 font-semibold">Debug Info:</p>
                   <p className="text-xs text-yellow-700 break-all">{debugInfo}</p>
+                  {router.query.booking_id && (
+                    <p className="text-xs text-green-700 mt-1">✅ Secure Mode: Using Booking UUID</p>
+                  )}
+                  {!router.query.booking_id && router.query.payment_intent && (
+                    <p className="text-xs text-orange-700 mt-1">⚠️ Fallback Mode: Using Payment Intent</p>
+                  )}
                 </div>
               )}
               <div className="text-left space-y-3 text-gray-600">

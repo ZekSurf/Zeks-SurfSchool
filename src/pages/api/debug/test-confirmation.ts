@@ -8,21 +8,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    // Create a test booking record
+    // Create a test booking record in the main bookings table
     try {
       const testPaymentIntentId = `pi_test_${Date.now()}`;
       const testConfirmationNumber = `SURF-TEST-${Date.now().toString().slice(-6)}`;
+      const testDate = new Date().toISOString().split('T')[0];
+      const testStartTime = `${testDate}T10:00:00-07:00`;
+      const testEndTime = `${testDate}T11:30:00-07:00`;
       
-      // Create a test temp booking record
+      // Create a test booking record in the main bookings table
       const { data, error } = await supabase
-        .from('temp_bookings')
+        .from('bookings')
         .insert({
-          items: [{ beach: 'Test Beach', price: 120 }],
-          customer_info: { firstName: 'Test', lastName: 'User' },
-          contact_info: {},
-          confirmation_number: testConfirmationNumber,
           payment_intent_id: testPaymentIntentId,
-          booking_status: 'completed'
+          confirmation_number: testConfirmationNumber,
+          customer_name: 'Test Customer',
+          customer_email: 'test@example.com',
+          customer_phone: '+1 (555) 123-4567',
+          beach: 'Test Beach',
+          lesson_date: testDate,
+          lesson_time: '10:00 AM - 11:30 AM',
+          start_time: testStartTime,
+          end_time: testEndTime,
+          price: 120.00,
+          lessons_booked: 1,
+          is_private: false,
+          status: 'confirmed'
         })
         .select()
         .single();
@@ -34,11 +45,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({
         success: true,
         testData: {
+          bookingId: data.id,
           paymentIntentId: testPaymentIntentId,
-          confirmationNumber: testConfirmationNumber,
-          recordId: data.id
+          confirmationNumber: testConfirmationNumber
         },
-        testUrl: `/confirmation?payment_intent=${testPaymentIntentId}`
+        testUrls: {
+          secure: `/confirmation?booking_id=${data.id}`,
+          fallback: `/confirmation?payment_intent=${testPaymentIntentId}`
+        }
       });
     } catch (error) {
       return res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
@@ -46,13 +60,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'GET') {
-    // List recent test records
+    // List recent test booking records
     try {
       const { data, error } = await supabase
-        .from('temp_bookings')
-        .select('*')
+        .from('bookings')
+        .select('id, confirmation_number, payment_intent_id, customer_name, beach, lesson_date, created_at')
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (error) {
         return res.status(500).json({ error: error.message });
@@ -60,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       return res.status(200).json({
         success: true,
-        recentRecords: data
+        recentBookings: data
       });
     } catch (error) {
       return res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
