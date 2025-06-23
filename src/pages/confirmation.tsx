@@ -24,6 +24,17 @@ export default function ConfirmationPage() {
     // Only use booking_id (UUID) from URL parameters
     const { booking_id } = router.query;
     
+    // If someone tries to use the old payment_intent format, redirect them to the proper flow
+    if (router.query.payment_intent && !booking_id) {
+      const paymentIntent = router.query.payment_intent as string;
+      
+      setDebugInfo(`Redirecting old format URL to new system: ${paymentIntent}`);
+      
+      // Redirect to the redirect page which will handle the lookup and proper redirect
+      router.replace(`/redirect-to-confirmation?payment_intent=${paymentIntent}`);
+      return;
+    }
+    
     if (booking_id && typeof booking_id === 'string') {
       // Fetch the booking data with retry logic
       const fetchBookingWithRetry = async (retryCount = 0) => {
@@ -75,7 +86,7 @@ export default function ConfirmationPage() {
       fetchBookingWithRetry();
     } else {
       // No booking ID provided
-      setError('No booking ID provided. Please check your booking confirmation email.');
+      setError('No booking ID provided. Please check your booking confirmation email for the correct link.');
       setDebugInfo('No booking ID in URL');
       setIsLoading(false);
     }

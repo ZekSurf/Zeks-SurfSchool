@@ -10,15 +10,15 @@ export default function RedirectToConfirmation() {
     const { payment_intent } = router.query;
     
     if (payment_intent && typeof payment_intent === 'string') {
-      // Look up the booking by payment intent to get the UUID
-      fetch(`/api/booking/get-by-id?payment_intent=${payment_intent}`)
+      // Look up the booking UUID by payment intent ID
+      fetch(`/api/booking/lookup-by-payment-intent?payment_intent=${payment_intent}`)
         .then(response => response.json())
         .then(data => {
-          if (data.success && data.booking && data.booking.id) {
+          if (data.success && data.booking_id) {
             // Redirect to the confirmation page with the booking UUID
-            router.replace(`/confirmation?booking_id=${data.booking.id}`);
+            router.replace(`/confirmation?booking_id=${data.booking_id}`);
           } else {
-            setError('Booking not found');
+            setError('Booking not found or payment not completed');
           }
         })
         .catch(error => {
@@ -45,9 +45,9 @@ export default function RedirectToConfirmation() {
                 <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
               <h1 className="text-xl font-semibold text-gray-900 mb-2">
-                Redirecting to your confirmation...
+                Processing Your Payment...
               </h1>
-              <p className="text-gray-600">Please wait a moment.</p>
+              <p className="text-gray-600">Please wait while we redirect you to your booking confirmation.</p>
             </>
           ) : (
             <>
