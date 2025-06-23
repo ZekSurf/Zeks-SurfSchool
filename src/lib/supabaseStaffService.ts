@@ -71,33 +71,53 @@ class SupabaseStaffService {
   // Save booking from Stripe webhook data
   public async saveBookingFromStripeData(stripeData: any): Promise<{ success: boolean; booking?: CompletedBooking; error?: string }> {
     try {
-      // Convert Stripe webhook data to booking format
-      const booking: CompletedBooking = {
-        id: `stripe-${stripeData.paymentIntentId}`,
-        confirmationNumber: stripeData.confirmationNumber,
-        paymentIntentId: stripeData.paymentIntentId,
-        customerName: stripeData.customerName,
-        customerEmail: stripeData.customerEmail,
-        customerPhone: stripeData.customerPhone || '',
+      // Create the database row directly without pre-generating the ID
+      // Let Supabase generate the UUID automatically
+      const dbRow = {
+        payment_intent_id: stripeData.paymentIntentId,
+        confirmation_number: stripeData.confirmationNumber,
+        customer_name: stripeData.customerName,
+        customer_email: stripeData.customerEmail,
+        customer_phone: stripeData.customerPhone || '',
         beach: stripeData.slotData?.beach || 'Unknown',
-        date: stripeData.slotData?.date || new Date().toISOString().split('T')[0],
-        startTime: stripeData.slotData?.startTime || '',
-        endTime: stripeData.slotData?.endTime || '',
+        lesson_date: stripeData.slotData?.date || new Date().toISOString().split('T')[0],
+        start_time: stripeData.slotData?.startTime || '',
+        end_time: stripeData.slotData?.endTime || '',
         price: stripeData.amount || 0,
-        lessonsBooked: stripeData.lessonsBooked || 1,
-        isPrivate: stripeData.isPrivate || false,
-        timestamp: stripeData.timestamp || new Date().toISOString(),
+        lessons_booked: stripeData.lessonsBooked || 1,
+        is_private: stripeData.isPrivate || false,
         status: 'confirmed'
       };
 
-      const result = await this.saveCompletedBooking(booking);
-      if (result.success) {
-        return { success: true, booking };
-      } else {
-        return { success: false, error: result.error };
+      // Generate a proper UUID for the booking
+      const bookingUuid = crypto.randomUUID();
+      const dbRowWithId = {
+        ...dbRow,
+        id: bookingUuid
+      };
+
+      // Insert and return the created record with the generated UUID
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert(dbRowWithId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase error saving booking:', error);
+        return { success: false, error: error.message };
       }
+
+      // Convert the returned data to CompletedBooking format
+      const booking = this.dbRowToBooking(data);
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ Booking saved with UUID:', booking.id);
+      }
+
+      return { success: true, booking };
     } catch (error) {
-      console.error('Error converting Stripe data to booking:', error);
+      console.error('Error saving Stripe booking to Supabase:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
