@@ -5,6 +5,7 @@ import { bookingService } from '@/lib/bookingService';
 import { supabaseStaffService } from '@/lib/supabaseStaffService';
 import { discountService } from '@/lib/discountService';
 import { CompletedBooking } from '@/types/booking';
+import { supabase } from '@/lib/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-05-28.basil',
@@ -21,141 +22,158 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  console.log('🔔 Stripe webhook received!', {
+    method: req.method,
+    nodeEnv: process.env.NODE_ENV,
+    timestamp: new Date().toISOString(),
+    hasSignature: !!req.headers['stripe-signature']
+  });
+
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).end('Method Not Allowed');
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const buf = await buffer(req);
-  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!endpointSecret) {
+    console.error('Missing STRIPE_WEBHOOK_SECRET environment variable');
+    return res.status(500).json({ error: 'Webhook secret not configured' });
+  }
 
   let event: Stripe.Event;
 
   try {
-    // Verify webhook signature
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    // console.log('Webhook secret exists:', !!webhookSecret); // REMOVED: Security risk
-    // console.log('Signature exists:', !!sig); // REMOVED: Security risk
-    
-    if (!webhookSecret) {
-      console.error('Stripe webhook secret not configured');
-      return res.status(500).json({ error: 'Webhook secret not configured' });
+    const rawBody = await buffer(req);
+    const signature = req.headers['stripe-signature'];
+
+    if (!signature) {
+      console.error('Missing stripe-signature header');
+      return res.status(400).json({ error: 'Missing signature' });
     }
 
-    event = stripe.webhooks.constructEvent(buf, sig as string, webhookSecret);
-    // console.log('Webhook signature verified successfully'); // REMOVED: Security risk
+    event = stripe.webhooks.constructEvent(rawBody, signature, endpointSecret);
   } catch (err) {
     console.error('Webhook signature verification failed:', err);
-    return res.status(400).json({ error: 'Webhook signature verification failed' });
+    return res.status(400).json({ 
+      error: err instanceof Error ? err.message : 'Signature verification failed' 
+    });
   }
 
-  // Handle the event
-  switch (event.type) {
-    case 'payment_intent.succeeded':
-      const paymentIntent = event.data.object as Stripe.PaymentIntent;
-      // Only log payment ID, not full object
-      if (process.env.NODE_ENV !== 'production') {
-        // SECURITY: Removed payment intent ID logging - contains payment data
-      }
-      
-      try {
-        await handleSuccessfulPayment(paymentIntent);
-      } catch (error) {
-        console.error('Error handling successful payment:', error);
-        return res.status(500).json({ error: 'Failed to process payment success' });
-      }
-      break;
-
-    case 'payment_intent.payment_failed':
-      const failedPayment = event.data.object as Stripe.PaymentIntent;
-      // Only log payment ID, not full object
-      if (process.env.NODE_ENV !== 'production') {
-        // SECURITY: Removed payment intent ID logging - contains payment data
-      }
-      
-      try {
-        await handleFailedPayment(failedPayment);
-      } catch (error) {
-        console.error('Error handling failed payment:', error);
-        // Don't return error for failed payments, just log
-      }
-      break;
-
-    default:
-      // Only log in development
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`Unhandled event type: ${event.type}`);
-      }
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('📨 Processing Stripe event:', event.type);
   }
 
-  res.json({ received: true });
+  try {
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        console.log('✅ Processing payment_intent.succeeded');
+        await handleSuccessfulPayment(event.data.object as Stripe.PaymentIntent);
+        break;
+      case 'payment_intent.payment_failed':
+        console.log('❌ Processing payment_intent.payment_failed');
+        await handleFailedPayment(event.data.object as Stripe.PaymentIntent);
+        break;
+      default:
+        // SECURITY: Removed event type logging - may contain sensitive data
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`Unhandled event type: ${event.type}`);
+        }
+    }
+
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.error('Error processing webhook:', error);
+    res.status(500).json({ 
+      error: error instanceof Error ? error.message : 'Webhook processing failed' 
+    });
+  }
 }
 
 async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
+  console.log('🚀 Starting handleSuccessfulPayment function');
+  
   const { metadata } = paymentIntent;
   
   if (process.env.NODE_ENV !== 'production') {
-    // SECURITY: Removed payment intent ID logging - contains payment data
+    console.log('💳 Payment Intent metadata keys:', Object.keys(metadata));
+    console.log('🔑 Has bookingRef:', !!metadata.bookingRef);
   }
 
-  // Parse booking details from metadata
-  const bookingDetails = JSON.parse(metadata.bookingDetails || '[]');
+  // Fetch booking details from database using bookingRef
+  let bookingDetails = [];
+  if (metadata.bookingRef) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('📋 Looking up booking details from database, ref:', metadata.bookingRef);
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('temp_bookings')
+        .select('*')
+        .eq('id', metadata.bookingRef)
+        .single();
+
+      if (error) {
+        console.error('Error fetching booking details:', error);
+        throw new Error('Failed to fetch booking details from database');
+      }
+
+      if (!data || !data.items) {
+        console.error('No booking items found in database, data:', data);
+        throw new Error('No booking items found in database');
+      }
+
+      bookingDetails = data.items;
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('📋 Successfully retrieved booking details from database:', {
+          itemCount: bookingDetails.length,
+          firstItemKeys: bookingDetails[0] ? Object.keys(bookingDetails[0]) : [],
+          firstItem: bookingDetails[0]
+        });
+      }
+    } catch (error) {
+      console.error('Database lookup failed:', error);
+      throw new Error('Failed to retrieve booking details');
+    }
+  } else {
+    // Fallback: try to parse from metadata (for backward compatibility)
+    try {
+      bookingDetails = JSON.parse(metadata.bookingDetails || '[]');
+      
+      // Handle both old and new compact field formats for backward compatibility
+      if (bookingDetails.length > 0 && bookingDetails[0].b) {
+        // Map compact field names back to full names
+        bookingDetails = bookingDetails.map((item: any) => ({
+          beach: item.b,
+          startTime: item.st,
+          endTime: item.et,
+          isPrivate: item.p === 1,
+          price: item.pr,
+          wetsuitSize: item.w,
+          slotId: item.s,
+          openSpaces: item.os,
+          available: item.a === 1,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to parse booking details from metadata:', error);
+      throw new Error('No booking details found');
+    }
+  }
   
   // Generate confirmation number
   const confirmationNumber = `SURF-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(-4).toUpperCase()}`;
 
   if (!bookingDetails.length) {
-    throw new Error('No booking details found in payment metadata');
+    throw new Error('No booking details found');
   }
 
   const firstBooking = bookingDetails[0];
   
-  // Use the original backend startTime and endTime from the slot data if available
+  // Use the original backend startTime and endTime from the slot data
   // These contain the full 1.5-hour duration needed for instructor setup/drive time
-  let startDateTime, endDateTime;
-  
-  if (firstBooking.startTime && firstBooking.endTime) {
-    // Use the original backend times (1.5 hours) directly
-    startDateTime = firstBooking.startTime;
-    endDateTime = firstBooking.endTime;
-  } else {
-    // Fallback: parse from display time and add 30 minutes buffer to end time
-    const parseTimeSlot = (timeString: string, dateString: string) => {
-      // e.g., "9:00 AM - 10:00 AM" (display format)
-      const [startTime, endTime] = timeString.split(' - ');
-      const dateOnly = new Date(dateString).toISOString().split('T')[0]; // YYYY-MM-DD format
-      
-      // Parse start time
-      const startTimeFormatted = parseTime(startTime);
-      const startDateTime = `${dateOnly}T${startTimeFormatted}:00-07:00`;
-      
-      // Parse end time and add 30 minutes for instructor setup/drive time
-      const endTimeFormatted = parseTime(endTime);
-      const endDate = new Date(`${dateOnly}T${endTimeFormatted}:00-07:00`);
-      endDate.setMinutes(endDate.getMinutes() + 30); // Add 30 minutes buffer
-      const endDateTime = endDate.toISOString().replace('Z', '-07:00');
-      
-      return { startDateTime, endDateTime };
-    };
-    
-    // Helper function to parse "9:00 AM" format to "09:00"
-    const parseTime = (timeStr: string) => {
-      const [time, period] = timeStr.split(' ');
-      let [hours, minutes] = time.split(':').map(Number);
-      
-      if (period === 'PM' && hours !== 12) {
-        hours += 12;
-      } else if (period === 'AM' && hours === 12) {
-        hours = 0;
-      }
-      
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    };
-    
-    const parsed = parseTimeSlot(firstBooking.time, firstBooking.date);
-    startDateTime = parsed.startDateTime;
-    endDateTime = parsed.endDateTime;
-  }
+  const startDateTime = firstBooking.startTime;
+  const endDateTime = firstBooking.endTime;
   
   // Get original cached openSpaces value (before booking)
   const isPrivateLesson = firstBooking.isPrivate || false;
@@ -202,7 +220,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     lessonsBooked: bookingDetails.length,
     slotData: {
       beach: firstBooking.beach,
-      date: new Date(firstBooking.date).toISOString().split('T')[0], // YYYY-MM-DD format
+      date: new Date(startDateTime).toISOString().split('T')[0], // Extract date from startTime
       slotId: firstBooking.slotId || `fallback-${Date.now()}`, // Use actual slot ID or fallback
       startTime: startDateTime,
       endTime: endDateTime,
@@ -216,12 +234,25 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
 
   // SECURITY: Only log booking details in development mode
   if (process.env.NODE_ENV !== 'production') {
-    // SECURITY: Removed customer data logging - contains PII
+    console.log('📊 Booking data payload structure:', {
+      paymentIntentId: bookingData.paymentIntentId,
+      confirmationNumber: bookingData.confirmationNumber,
+      customerName: bookingData.customerName,
+      lessonsBooked: bookingData.lessonsBooked,
+      slotDataKeys: Object.keys(bookingData.slotData),
+      totalFields: Object.keys(bookingData).length
+    });
   }
 
   // Send to your n8n workflow
   const n8nWebhookUrl = process.env.N8N_BOOKING_WEBHOOK_URL;
-  // console.log('N8N webhook URL exists:', !!n8nWebhookUrl); // REMOVED: Security risk
+  
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('🔗 N8N webhook URL configured:', !!n8nWebhookUrl);
+    if (n8nWebhookUrl) {
+      console.log('🔗 N8N webhook URL domain:', new URL(n8nWebhookUrl).hostname);
+    }
+  }
   
   if (!n8nWebhookUrl) {
     console.error('N8N webhook URL not configured');
@@ -233,6 +264,12 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   const password = process.env.N8N_WEBHOOK_PASSWORD;
   const basicAuth = Buffer.from(`${username}:${password}`).toString('base64');
 
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('🚀 Sending webhook to n8n...');
+    console.log('🔐 Auth configured:', !!username && !!password);
+    console.log('📦 Payload size:', JSON.stringify(bookingData).length, 'bytes');
+  }
+
   const response = await fetch(n8nWebhookUrl, {
     method: 'POST',
     headers: {
@@ -242,14 +279,24 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     body: JSON.stringify(bookingData),
   });
 
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('📡 N8N response status:', response.status);
+    console.log('📡 N8N response headers:', Object.fromEntries(response.headers.entries()));
+  }
+
   if (!response.ok) {
     const errorText = await response.text();
     console.error('Failed to send data to n8n:', response.status, errorText);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('📦 Failed payload was:', JSON.stringify(bookingData, null, 2));
+    }
     throw new Error(`Failed to send to n8n: ${response.status}`);
   }
 
+  const responseText = await response.text();
   if (process.env.NODE_ENV !== 'production') {
-    console.log('Successfully sent booking data to n8n');
+    console.log('✅ Successfully sent booking data to n8n');
+    console.log('📡 N8N response body:', responseText);
   }
 
   // IMPORTANT: n8n webhook call succeeded - everything after this point should not cause Stripe retries
@@ -276,12 +323,16 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
         }
         
         // Format date and time for notification
-        const lessonDate = new Date(firstBooking.date).toLocaleDateString('en-US', {
+        const lessonDate = new Date(startDateTime).toLocaleDateString('en-US', {
           weekday: 'short',
           month: 'short',
           day: 'numeric'
         });
-        const lessonTime = firstBooking.time.split(' - ')[0]; // Get start time only
+        const lessonTime = new Date(startDateTime).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
         
         const notificationPayload = {
           title: 'New Surf Lesson Booked!',
@@ -356,7 +407,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   
   // Cache invalidation only (no fresh fetch to avoid triggering time slots webhook)
   try {
-    const bookingDate = new Date(firstBooking.date).toISOString().split('T')[0]; // YYYY-MM-DD format
+    const bookingDate = new Date(startDateTime).toISOString().split('T')[0]; // Extract date from startTime
     await bookingService.invalidateCacheForBooking(bookingDate);
     
     if (process.env.NODE_ENV !== 'production') {
@@ -366,10 +417,43 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     console.error('❌ Error invalidating booking cache:', error);
     // Don't throw error here - cache clearing failure shouldn't break webhook
   }
+
+  // Clean up temporary booking record after successful processing
+  if (metadata.bookingRef) {
+    try {
+      await supabase
+        .from('temp_bookings')
+        .delete()
+        .eq('id', metadata.bookingRef);
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ Temporary booking record cleaned up');
+      }
+    } catch (error) {
+      console.error('❌ Error cleaning up temporary booking:', error);
+      // Don't throw error here - cleanup failure shouldn't break webhook
+    }
+  }
 }
 
 async function handleFailedPayment(paymentIntent: Stripe.PaymentIntent) {
   const { metadata } = paymentIntent;
+  
+  // Clean up temporary booking record on payment failure
+  if (metadata.bookingRef) {
+    try {
+      await supabase
+        .from('temp_bookings')
+        .delete()
+        .eq('id', metadata.bookingRef);
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ Temporary booking record cleaned up after payment failure');
+      }
+    } catch (error) {
+      console.error('❌ Error cleaning up temporary booking after failure:', error);
+    }
+  }
   
   // Notify about failed payment (optional)
   const failureData = {

@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
+import { supabase } from '@/lib/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-05-28.basil',
@@ -29,6 +30,43 @@ export default async function handler(
     // Get wetsuit size from localStorage contact info (if available)
     const contactInfo = req.body.contactInfo || {};
 
+    // Store booking details in database instead of Stripe metadata
+    let bookingReference = null;
+    if (items && items.length > 0) {
+      const bookingData = {
+        items: items.map((item: any) => ({
+          beach: item.beach,
+          startTime: item.startTime,
+          endTime: item.endTime,
+          isPrivate: item.isPrivateLesson,
+          price: item.price,
+          wetsuitSize: item.wetsuitSize || contactInfo.wetsuitSize || '',
+          slotId: item.slotId,
+          openSpaces: item.openSpaces,
+          available: item.available,
+        })),
+        customer_info: customerInfo,
+        contact_info: contactInfo,
+        discount_info: discountInfo,
+        created_at: new Date().toISOString(),
+        status: 'pending'
+      };
+
+      // Store in Supabase temporary bookings table
+      const { data, error } = await supabase
+        .from('temp_bookings')
+        .insert(bookingData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error storing booking data:', error);
+        return res.status(500).json({ error: 'Failed to store booking data' });
+      }
+
+      bookingReference = data.id;
+    }
+
     // Create or retrieve customer
     let customer;
     const existingCustomers = await stripe.customers.list({
@@ -49,7 +87,7 @@ export default async function handler(
     // Calculate the actual amount (convert to cents for Stripe)
     const amountInCents = Math.round(amount * 100);
 
-    // Create payment intent
+    // Create payment intent with minimal metadata
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency,
@@ -59,31 +97,16 @@ export default async function handler(
         customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
         customerEmail: customerInfo.email,
         customerPhone: customerInfo.phone,
-        wetsuitSize: contactInfo.wetsuitSize || '', // Add wetsuit size to metadata
+        wetsuitSize: contactInfo.wetsuitSize || '',
         specialRequests: contactInfo.specialRequests || '',
         itemCount: items?.length || 0,
+        bookingRef: bookingReference, // Just store the database reference
         // Store discount information in metadata
         ...(discountInfo && {
           discountCode: discountInfo.code,
           discountType: discountInfo.type,
           discountAmount: discountInfo.amount.toString(),
           originalAmount: (amount + discountInfo.discountAmount).toString(),
-        }),
-        // Store booking details in metadata
-        ...(items && {
-          bookingDetails: JSON.stringify(items.map((item: any) => ({
-            beach: item.beach,
-            date: item.date,
-            time: item.time, // Display time (1 hour)
-            startTime: item.startTime, // Original backend start time
-            endTime: item.endTime, // Original backend end time (1.5 hours)
-            isPrivate: item.isPrivateLesson,
-            price: item.price,
-            wetsuitSize: item.wetsuitSize || contactInfo.wetsuitSize || '', // Include wetsuit size
-            slotId: item.slotId, // Include the actual slot ID
-            openSpaces: item.openSpaces, // Include cached openSpaces value
-            available: item.available, // Include cached available value
-          }))),
         }),
       },
     });

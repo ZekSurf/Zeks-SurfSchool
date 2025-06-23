@@ -136,6 +136,34 @@ CREATE INDEX idx_cache_key ON time_slots_cache(cache_key);
 CREATE INDEX idx_cache_beach_date ON time_slots_cache(beach, date);
 CREATE INDEX idx_cache_expires_at ON time_slots_cache(expires_at);
 CREATE INDEX idx_cache_date ON time_slots_cache(date);
+
+-- Create temp_bookings table for storing booking details during payment
+CREATE TABLE temp_bookings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  items JSONB NOT NULL,
+  customer_info JSONB NOT NULL,
+  contact_info JSONB DEFAULT '{}',
+  discount_info JSONB DEFAULT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  status TEXT DEFAULT 'pending',
+  -- Auto-cleanup old records after 1 hour
+  expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '1 hour')
+);
+
+-- Index for faster lookups
+CREATE INDEX idx_temp_bookings_created_at ON temp_bookings(created_at);
+CREATE INDEX idx_temp_bookings_expires_at ON temp_bookings(expires_at);
+
+-- Auto-cleanup function (optional but recommended)
+CREATE OR REPLACE FUNCTION cleanup_expired_temp_bookings()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM temp_bookings WHERE expires_at < NOW();
+END;
+$$ LANGUAGE plpgsql;
+
+-- Schedule cleanup every hour (optional)
+-- You can set this up in your Supabase cron extension or run manually
 ```
 
 ## 4. Configure Row Level Security (RLS)
@@ -359,3 +387,34 @@ If you encounter issues:
 4. Review this guide for missed steps
 
 Your staff portal is now powered by a professional database! 🎉 
+
+## 📊 Database Tables
+
+### Existing Tables
+
+1. **bookings** - Stores completed bookings for staff portal
+2. **time_slots_cache** - Caches surf conditions and time slots
+3. **discount_codes** - Stores discount codes and usage tracking
+
+### New Required Table
+
+4. **temp_bookings** - Temporary storage for booking details during payment processing
+
+**Why This Approach?**
+
+- **Unlimited Booking Items**: No more Stripe metadata 500-character limit
+- **Better Data Structure**: Proper JSON storage instead of compressed strings
+- **Automatic Cleanup**: Old records are automatically removed
+- **Backward Compatibility**: Still supports old metadata format as fallback
+- **Better Error Handling**: Database errors are more manageable than metadata parsing errors
+
+-- Auto-cleanup function (optional but recommended)
+CREATE OR REPLACE FUNCTION cleanup_expired_temp_bookings()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM temp_bookings WHERE expires_at < NOW();
+END;
+$$ LANGUAGE plpgsql;
+
+-- Schedule cleanup every hour (optional)
+-- You can set this up in your Supabase cron extension or run manually 
