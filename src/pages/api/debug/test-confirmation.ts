@@ -49,10 +49,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           paymentIntentId: testPaymentIntentId,
           confirmationNumber: testConfirmationNumber
         },
-        testUrls: {
-          secure: `/confirmation?booking_id=${data.id}`,
-          fallback: `/confirmation?payment_intent=${testPaymentIntentId}`
-        }
+        testUrl: `/confirmation?booking_id=${data.id}`,
+        message: 'Test booking created. Use the testUrl to view the confirmation page.'
       });
     } catch (error) {
       return res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });

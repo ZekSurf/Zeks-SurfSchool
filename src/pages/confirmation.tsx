@@ -10,6 +10,8 @@ export default function ConfirmationPage() {
   const [confirmationNumber, setConfirmationNumber] = useState('');
   const [paymentIntentId, setPaymentIntentId] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const scrollToBooking = () => {
     const bookingSection = document.getElementById('booking');
@@ -19,32 +21,16 @@ export default function ConfirmationPage() {
   };
 
     useEffect(() => {
-    // Get parameters from URL - support both booking_id (UUID) and payment_intent
-    const { booking_id, payment_intent } = router.query;
+    // Only use booking_id (UUID) from URL parameters
+    const { booking_id } = router.query;
     
-    if ((booking_id && typeof booking_id === 'string') || (payment_intent && typeof payment_intent === 'string')) {
-      // Set payment intent ID for display if available
-      if (payment_intent && typeof payment_intent === 'string') {
-        setPaymentIntentId(payment_intent);
-      }
-      
+    if (booking_id && typeof booking_id === 'string') {
       // Fetch the booking data with retry logic
       const fetchBookingWithRetry = async (retryCount = 0) => {
-        const identifier = booking_id || payment_intent;
-        const identifierType = booking_id ? 'booking ID' : 'payment intent';
-        
-        setDebugInfo(`Fetching booking by ${identifierType}: ${identifier} (attempt ${retryCount + 1})`);
+        setDebugInfo(`Fetching booking by ID: ${booking_id} (attempt ${retryCount + 1})`);
         
         try {
-          // Use the new API endpoint that can handle both booking UUID and payment intent
-          let apiUrl = '/api/booking/get-by-id?';
-          if (booking_id) {
-            apiUrl += `booking_id=${booking_id}`;
-          } else if (payment_intent) {
-            apiUrl += `payment_intent=${payment_intent}`;
-          }
-          
-          const response = await fetch(apiUrl);
+          const response = await fetch(`/api/booking/get-by-id?booking_id=${booking_id}`);
           setDebugInfo(prev => prev + ` | Response status: ${response.status}`);
           
           const data = await response.json();
@@ -52,8 +38,9 @@ export default function ConfirmationPage() {
           
           if (data.success && data.booking) {
             setConfirmationNumber(data.booking.confirmationNumber);
-            setPaymentIntentId(data.booking.paymentIntentId); // Set if not already set
-            setDebugInfo(prev => prev + ` | Using real confirmation: ${data.booking.confirmationNumber}`);
+            setPaymentIntentId(data.booking.paymentIntentId);
+            setDebugInfo(prev => prev + ` | Success: ${data.booking.confirmationNumber}`);
+            setIsLoading(false);
             return;
           }
           
@@ -64,35 +51,33 @@ export default function ConfirmationPage() {
             return;
           }
           
-          // Fallback after retries
-          const timestamp = Date.now().toString().slice(-6);
-          const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-          const confirmNumber = `SURF-${timestamp}-${random}`;
-          setConfirmationNumber(confirmNumber);
-          setDebugInfo(prev => prev + ` | Using fallback confirmation after retries: ${confirmNumber}`);
+          // After all retries failed
+          setError('Booking not found. Please check your booking confirmation email or contact support.');
+          setDebugInfo(prev => prev + ` | Booking not found after retries`);
+          setIsLoading(false);
           
         } catch (error) {
           console.error('Error fetching booking:', error);
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           setDebugInfo(prev => prev + ` | Error: ${errorMessage}`);
           
-          // Fallback: Generate a random confirmation number if API fails
-          const timestamp = Date.now().toString().slice(-6);
-          const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-          const confirmNumber = `SURF-${timestamp}-${random}`;
-          setConfirmationNumber(confirmNumber);
-          setDebugInfo(prev => prev + ` | Using fallback after error: ${confirmNumber}`);
+          if (retryCount < 3) {
+            setDebugInfo(prev => prev + ` | Retrying due to error...`);
+            setTimeout(() => fetchBookingWithRetry(retryCount + 1), 2000);
+            return;
+          }
+          
+          setError('Unable to load booking information. Please try again later or contact support.');
+          setIsLoading(false);
         }
       };
       
       fetchBookingWithRetry();
     } else {
-      // No valid identifier, generate fallback confirmation number
-      const timestamp = Date.now().toString().slice(-6);
-      const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-      const confirmNumber = `SURF-${timestamp}-${random}`;
-      setConfirmationNumber(confirmNumber);
-      setDebugInfo('No booking ID or payment intent provided');
+      // No booking ID provided
+      setError('No booking ID provided. Please check your booking confirmation email.');
+      setDebugInfo('No booking ID in URL');
+      setIsLoading(false);
     }
 
   }, [router.query]);
@@ -132,86 +117,144 @@ export default function ConfirmationPage() {
       <main className="pt-16 min-[427px]:pt-20 lg:pt-24 min-h-screen bg-neutral">
         <div className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
           <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-10 h-10 text-green-500" />
-              </div>
-            </div>
             
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              Thank You for Your Order!
-            </h1>
-
-            <div className="bg-gray-50 rounded-lg p-6 mb-8">
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">Order Confirmation</h2>
-              <p className="text-gray-600 mb-4">Your confirmation number is:</p>
-              <p className="text-2xl font-mono font-bold text-[#1DA9C7] mb-4">{confirmationNumber}</p>
-              {paymentIntentId && (
-                <div className="mb-4">
-                  <p className="text-sm text-gray-500 mb-1">Payment ID:</p>
-                  <p className="text-sm font-mono text-gray-600 break-all">{paymentIntentId}</p>
+            {/* Loading State */}
+            {isLoading && (
+              <>
+                <div className="flex justify-center mb-6">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  </div>
                 </div>
-              )}
-              {process.env.NODE_ENV === 'development' && debugInfo && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                  <p className="text-sm text-yellow-800 font-semibold">Debug Info:</p>
-                  <p className="text-xs text-yellow-700 break-all">{debugInfo}</p>
-                  {router.query.booking_id && (
-                    <p className="text-xs text-green-700 mt-1">✅ Secure Mode: Using Booking UUID</p>
-                  )}
-                  {!router.query.booking_id && router.query.payment_intent && (
-                    <p className="text-xs text-orange-700 mt-1">⚠️ Fallback Mode: Using Payment Intent</p>
-                  )}
-                </div>
-              )}
-              <div className="text-left space-y-3 text-gray-600">
-                <p>
-                  ✅ <strong>Payment successful!</strong> We've sent a confirmation email with your booking details and important information.
-                  Please check your inbox (and spam folder, just in case).
-                </p>
-                <p>
-                  Our team will be in contact with you shortly to discuss any specific requirements
-                  and ensure you're fully prepared for your surf lesson.
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-gray-50 rounded-lg p-6 mb-8">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">What's Next?</h2>
-              <ul className="text-left space-y-4 text-gray-600">
-                <li className="flex items-start">
-                  <span className="text-[#1DA9C7] mr-2">1.</span>
-                  Check your email for the confirmation and detailed instructions
-                </li>
-                <li className="flex items-start">
-                  <span className="text-[#1DA9C7] mr-2">2.</span>
-                  Arrive 15 minutes before your lesson time
-                </li>
-                <li className="flex items-start">
-                  <span className="text-[#1DA9C7] mr-2">3.</span>
-                  Bring sunscreen, water, and a towel
-                </li>
-                <li className="flex items-start">
-                  <span className="text-[#1DA9C7] mr-2">4.</span>
-                  We'll provide the surfboard and wetsuit
-                </li>
-              </ul>
-            </div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                  Loading Your Booking...
+                </h1>
+                <p className="text-gray-600">Please wait while we retrieve your booking information.</p>
+              </>
+            )}
 
-            <div className="space-x-4">
-              <Link 
-                href="/"
-                className="inline-block bg-white text-[#1DA9C7] px-6 py-3 rounded-lg font-medium border-2 border-[#1DA9C7] hover:bg-gray-50 transition-colors"
-              >
-                Return Home
-              </Link>
-              <Link 
-                href="/#booking"
-                className="inline-block bg-[#1DA9C7] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#1897B2] transition-colors"
-              >
-                Book Another Lesson
-              </Link>
-            </div>
+            {/* Error State */}
+            {!isLoading && error && (
+              <>
+                <div className="flex justify-center mb-6">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <div className="w-10 h-10 text-red-500">❌</div>
+                  </div>
+                </div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                  Booking Not Found
+                </h1>
+                <div className="bg-red-50 rounded-lg p-6 mb-8">
+                  <p className="text-red-800 mb-4">{error}</p>
+                  <p className="text-red-600 text-sm">
+                    If you believe this is an error, please contact our support team with your payment information.
+                  </p>
+                </div>
+                
+                {process.env.NODE_ENV === 'development' && debugInfo && (
+                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                    <p className="text-sm text-yellow-800 font-semibold">Debug Info:</p>
+                    <p className="text-xs text-yellow-700 break-all">{debugInfo}</p>
+                  </div>
+                )}
+
+                <div className="space-x-4">
+                  <Link 
+                    href="/"
+                    className="inline-block bg-white text-[#1DA9C7] px-6 py-3 rounded-lg font-medium border-2 border-[#1DA9C7] hover:bg-gray-50 transition-colors"
+                  >
+                    Return Home
+                  </Link>
+                  <Link 
+                    href="/#booking"
+                    className="inline-block bg-[#1DA9C7] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#1897B2] transition-colors"
+                  >
+                    Book Another Lesson
+                  </Link>
+                </div>
+              </>
+            )}
+
+            {/* Success State */}
+            {!isLoading && !error && confirmationNumber && (
+              <>
+                <div className="flex justify-center mb-6">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-10 h-10 text-green-500" />
+                  </div>
+                </div>
+                
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                  Thank You for Your Order!
+                </h1>
+
+                <div className="bg-gray-50 rounded-lg p-6 mb-8">
+                  <h2 className="text-xl font-semibold text-gray-800 mb-2">Order Confirmation</h2>
+                  <p className="text-gray-600 mb-4">Your confirmation number is:</p>
+                  <p className="text-2xl font-mono font-bold text-[#1DA9C7] mb-4">{confirmationNumber}</p>
+                  {paymentIntentId && (
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-500 mb-1">Payment ID:</p>
+                      <p className="text-sm font-mono text-gray-600 break-all">{paymentIntentId}</p>
+                    </div>
+                  )}
+                  {process.env.NODE_ENV === 'development' && debugInfo && (
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                      <p className="text-sm text-yellow-800 font-semibold">Debug Info:</p>
+                      <p className="text-xs text-yellow-700 break-all">{debugInfo}</p>
+                      <p className="text-xs text-green-700 mt-1">✅ Secure Mode: Using Booking UUID</p>
+                    </div>
+                  )}
+                  <div className="text-left space-y-3 text-gray-600">
+                    <p>
+                      ✅ <strong>Payment successful!</strong> We've sent a confirmation email with your booking details and important information.
+                      Please check your inbox (and spam folder, just in case).
+                    </p>
+                    <p>
+                      Our team will be in contact with you shortly to discuss any specific requirements
+                      and ensure you're fully prepared for your surf lesson.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg p-6 mb-8">
+                  <h2 className="text-lg font-semibold text-gray-800 mb-4">What's Next?</h2>
+                  <ul className="text-left space-y-4 text-gray-600">
+                    <li className="flex items-start">
+                      <span className="text-[#1DA9C7] mr-2">1.</span>
+                      Check your email for the confirmation and detailed instructions
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-[#1DA9C7] mr-2">2.</span>
+                      Arrive 15 minutes before your lesson time
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-[#1DA9C7] mr-2">3.</span>
+                      Bring sunscreen, water, and a towel
+                    </li>
+                    <li className="flex items-start">
+                      <span className="text-[#1DA9C7] mr-2">4.</span>
+                      We'll provide the surfboard and wetsuit
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="space-x-4">
+                  <Link 
+                    href="/"
+                    className="inline-block bg-white text-[#1DA9C7] px-6 py-3 rounded-lg font-medium border-2 border-[#1DA9C7] hover:bg-gray-50 transition-colors"
+                  >
+                    Return Home
+                  </Link>
+                  <Link 
+                    href="/#booking"
+                    className="inline-block bg-[#1DA9C7] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#1897B2] transition-colors"
+                  >
+                    Book Another Lesson
+                  </Link>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </main>

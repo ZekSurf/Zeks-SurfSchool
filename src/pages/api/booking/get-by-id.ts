@@ -15,14 +15,22 @@ export default async function handler(
     return res.status(400).json({ error: 'Either booking_id or payment_intent is required' });
   }
 
+  if (booking_id && typeof booking_id !== 'string') {
+    return res.status(400).json({ error: 'booking_id must be a string' });
+  }
+
+  if (payment_intent && typeof payment_intent !== 'string') {
+    return res.status(400).json({ error: 'payment_intent must be a string' });
+  }
+
   try {
     let query = supabase.from('bookings').select('*');
     
-    if (booking_id && typeof booking_id === 'string') {
+    if (booking_id) {
       // Query by booking UUID (primary approach)
       query = query.eq('id', booking_id);
-    } else if (payment_intent && typeof payment_intent === 'string') {
-      // Fallback: Query by payment intent ID
+    } else if (payment_intent) {
+      // Query by payment intent ID (for redirect page only)
       query = query.eq('payment_intent_id', payment_intent);
     }
 

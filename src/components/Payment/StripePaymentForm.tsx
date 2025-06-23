@@ -45,7 +45,7 @@ const CheckoutForm: React.FC<PaymentFormProps> = ({
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/confirmation`,
+          return_url: `${window.location.origin}/redirect-to-confirmation`,
           receipt_email: customerInfo.email,
           payment_method_data: {
             billing_details: {
