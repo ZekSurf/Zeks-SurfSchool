@@ -10,10 +10,11 @@ export default function RedirectToConfirmation() {
     const { payment_intent } = router.query;
     
     if (payment_intent && typeof payment_intent === 'string') {
-      // Look up the booking UUID by payment intent ID
-      fetch(`/api/booking/lookup-by-payment-intent?payment_intent=${payment_intent}`)
-        .then(response => response.json())
-        .then(data => {
+      // Add a small delay to allow webhook to complete
+      const lookupBooking = () => {
+        fetch(`/api/booking/lookup-by-payment-intent?payment_intent=${payment_intent}`)
+          .then(response => response.json())
+          .then(data => {
           if (data.success && data.booking_id) {
             // Force a complete page navigation to prevent reload issues
             window.location.href = `/confirmation?booking_id=${data.booking_id}`;
@@ -23,9 +24,13 @@ export default function RedirectToConfirmation() {
           }
         })
         .catch(error => {
-          console.error('Error fetching booking:', error);
-          setError(`Unable to find booking information for this payment. Please check your email for booking details or contact support. Reference: ${payment_intent.slice(-8)}...`);
-        });
+                      console.error('Error fetching booking:', error);
+            setError(`Unable to find booking information for this payment. Please check your email for booking details or contact support. Reference: ${payment_intent.slice(-8)}...`);
+          });
+      };
+      
+      // Wait 2 seconds to allow webhook to save booking, then try lookup
+      setTimeout(lookupBooking, 2000);
     } else {
       setError('No payment intent provided in the link');
     }
@@ -46,9 +51,9 @@ export default function RedirectToConfirmation() {
                 <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
               <h1 className="text-xl font-semibold text-gray-900 mb-2">
-                Looking Up Your Booking...
+                Processing Your Payment...
               </h1>
-              <p className="text-gray-600">Please wait while we find your booking confirmation.</p>
+              <p className="text-gray-600">Please wait while we confirm your payment and prepare your booking details.</p>
             </>
           ) : (
             <>
