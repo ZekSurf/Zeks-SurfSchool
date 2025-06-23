@@ -21,8 +21,19 @@ export default function ConfirmationPage() {
   };
 
     useEffect(() => {
+    // Debug: Show all URL parameters
+    const allParams = Object.keys(router.query).map(key => `${key}=${router.query[key]}`).join('&');
+    setDebugInfo(`URL params: ${allParams || 'NONE'} | Router ready: ${router.isReady}`);
+    
+    // Only proceed if router is ready
+    if (!router.isReady) {
+      setDebugInfo(prev => prev + ' | Waiting for router...');
+      return;
+    }
+    
     // Only use booking_id (UUID) from URL parameters
     const { booking_id } = router.query;
+    setDebugInfo(prev => prev + ` | booking_id extracted: "${booking_id}" (type: ${typeof booking_id})`);
     
     // If someone tries to use the old payment_intent format, redirect them to the proper flow
     if (router.query.payment_intent && !booking_id) {
@@ -95,7 +106,7 @@ export default function ConfirmationPage() {
       setIsLoading(false);
     }
 
-  }, [router.query]);
+  }, [router.query, router.isReady]);
 
   // Separate useEffect for Google Ads tracking when confirmation number is available
   useEffect(() => {
