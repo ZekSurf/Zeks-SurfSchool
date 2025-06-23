@@ -38,10 +38,14 @@ export default function ConfirmationPage() {
     if (booking_id && typeof booking_id === 'string') {
       // Fetch the booking data with retry logic
       const fetchBookingWithRetry = async (retryCount = 0) => {
-        setDebugInfo(`Fetching booking by ID: ${booking_id} (attempt ${retryCount + 1})`);
+        const bookingIdInfo = `ID: ${booking_id} (length: ${booking_id.length}, type: ${typeof booking_id})`;
+        setDebugInfo(`Fetching booking - ${bookingIdInfo} (attempt ${retryCount + 1})`);
         
         try {
-          const response = await fetch(`/api/booking/get-by-id?booking_id=${booking_id}`);
+          const apiUrl = `/api/booking/get-by-id?booking_id=${booking_id}`;
+          setDebugInfo(prev => prev + ` | API URL: ${apiUrl}`);
+          
+          const response = await fetch(apiUrl);
           setDebugInfo(prev => prev + ` | Response status: ${response.status}`);
           
           const data = await response.json();
@@ -56,15 +60,15 @@ export default function ConfirmationPage() {
           }
           
           // If no booking found and we haven't retried enough, try again
-          if (response.status === 404 && retryCount < 3) {
-            setDebugInfo(prev => prev + ` | Retrying in 2 seconds...`);
-            setTimeout(() => fetchBookingWithRetry(retryCount + 1), 2000);
+          if (response.status === 404 && retryCount < 2) { // Reduced retries from 3 to 2
+            setDebugInfo(prev => prev + ` | Booking not found, retrying in 1 second... (${retryCount + 1}/2)`);
+            setTimeout(() => fetchBookingWithRetry(retryCount + 1), 1000); // Reduced delay
             return;
           }
           
           // After all retries failed
-          setError('Booking not found. Please check your booking confirmation email or contact support.');
-          setDebugInfo(prev => prev + ` | Booking not found after retries`);
+          setError(`Booking not found for ID: ${booking_id.slice(0, 8)}... Please check your booking confirmation email or contact support.`);
+          setDebugInfo(prev => prev + ` | Booking not found after ${retryCount + 1} attempts`);
           setIsLoading(false);
           
         } catch (error) {
@@ -72,9 +76,9 @@ export default function ConfirmationPage() {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           setDebugInfo(prev => prev + ` | Error: ${errorMessage}`);
           
-          if (retryCount < 3) {
-            setDebugInfo(prev => prev + ` | Retrying due to error...`);
-            setTimeout(() => fetchBookingWithRetry(retryCount + 1), 2000);
+          if (retryCount < 2) { // Reduced retries from 3 to 2
+            setDebugInfo(prev => prev + ` | Network error, retrying in 1 second... (${retryCount + 1}/2)`);
+            setTimeout(() => fetchBookingWithRetry(retryCount + 1), 1000); // Reduced delay
             return;
           }
           

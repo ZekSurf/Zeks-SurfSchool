@@ -15,8 +15,8 @@ export default function RedirectToConfirmation() {
         .then(response => response.json())
         .then(data => {
           if (data.success && data.booking_id) {
-            // Redirect to the confirmation page with the booking UUID
-            router.replace(`/confirmation?booking_id=${data.booking_id}`);
+            // Force a complete page navigation to prevent reload issues
+            window.location.href = `/confirmation?booking_id=${data.booking_id}`;
           } else {
             // This might be an older booking that doesn't exist in our current system
             setError(`This booking link is from an older system and may not be available. Payment Intent: ${payment_intent.slice(-8)}... Please check your email for booking details or contact support.`);
