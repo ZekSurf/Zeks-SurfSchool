@@ -21,19 +21,13 @@ export default function ConfirmationPage() {
   };
 
     useEffect(() => {
-    // Debug: Show all URL parameters
-    const allParams = Object.keys(router.query).map(key => `${key}=${router.query[key]}`).join('&');
-    setDebugInfo(`URL params: ${allParams || 'NONE'} | Router ready: ${router.isReady}`);
-    
     // Only proceed if router is ready
     if (!router.isReady) {
-      setDebugInfo(prev => prev + ' | Waiting for router...');
       return;
     }
     
     // Only use booking_id (UUID) from URL parameters
     const { booking_id } = router.query;
-    setDebugInfo(prev => prev + ` | booking_id extracted: "${booking_id}" (type: ${typeof booking_id})`);
     
     // If someone tries to use the old payment_intent format, redirect them to the proper flow
     if (router.query.payment_intent && !booking_id) {
@@ -49,47 +43,32 @@ export default function ConfirmationPage() {
     if (booking_id && typeof booking_id === 'string') {
       // Fetch the booking data with retry logic
       const fetchBookingWithRetry = async (retryCount = 0) => {
-        const bookingIdInfo = `ID: ${booking_id} (length: ${booking_id.length}, type: ${typeof booking_id})`;
-        setDebugInfo(`Fetching booking - ${bookingIdInfo} (attempt ${retryCount + 1})`);
-        
         try {
-          const apiUrl = `/api/booking/get-by-id?booking_id=${booking_id}`;
-          setDebugInfo(prev => prev + ` | API URL: ${apiUrl}`);
-          
-          const response = await fetch(apiUrl);
-          setDebugInfo(prev => prev + ` | Response status: ${response.status}`);
-          
+          const response = await fetch(`/api/booking/get-by-id?booking_id=${booking_id}`);
           const data = await response.json();
-          setDebugInfo(prev => prev + ` | Response data: ${JSON.stringify(data)}`);
           
           if (data.success && data.booking) {
             setConfirmationNumber(data.booking.confirmationNumber);
             setPaymentIntentId(data.booking.paymentIntentId);
-            setDebugInfo(prev => prev + ` | Success: ${data.booking.confirmationNumber}`);
             setIsLoading(false);
             return;
           }
           
           // If no booking found and we haven't retried enough, try again
-          if (response.status === 404 && retryCount < 2) { // Reduced retries from 3 to 2
-            setDebugInfo(prev => prev + ` | Booking not found, retrying in 1 second... (${retryCount + 1}/2)`);
-            setTimeout(() => fetchBookingWithRetry(retryCount + 1), 1000); // Reduced delay
+          if (response.status === 404 && retryCount < 2) {
+            setTimeout(() => fetchBookingWithRetry(retryCount + 1), 1000);
             return;
           }
           
           // After all retries failed
           setError(`Booking not found for ID: ${booking_id.slice(0, 8)}... Please check your booking confirmation email or contact support.`);
-          setDebugInfo(prev => prev + ` | Booking not found after ${retryCount + 1} attempts`);
           setIsLoading(false);
           
         } catch (error) {
           console.error('Error fetching booking:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          setDebugInfo(prev => prev + ` | Error: ${errorMessage}`);
           
-          if (retryCount < 2) { // Reduced retries from 3 to 2
-            setDebugInfo(prev => prev + ` | Network error, retrying in 1 second... (${retryCount + 1}/2)`);
-            setTimeout(() => fetchBookingWithRetry(retryCount + 1), 1000); // Reduced delay
+          if (retryCount < 2) {
+            setTimeout(() => fetchBookingWithRetry(retryCount + 1), 1000);
             return;
           }
           
@@ -102,7 +81,6 @@ export default function ConfirmationPage() {
     } else {
       // No booking ID provided
       setError('No booking ID provided. Please check your booking confirmation email for the correct link.');
-      setDebugInfo('No booking ID in URL');
       setIsLoading(false);
     }
 
