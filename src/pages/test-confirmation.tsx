@@ -25,7 +25,7 @@ export default function TestConfirmation() {
         window.location.href = `/confirmation?booking_id=${data.booking_id}`;
       }
     } catch (error) {
-      setResult({ error: error.message });
+      setResult({ error: error instanceof Error ? error.message : 'Unknown error occurred' });
     } finally {
       setLoading(false);
     }
