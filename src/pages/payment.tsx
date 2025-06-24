@@ -53,13 +53,23 @@ export default function PaymentPage() {
   }, [items.length, router]);
 
   const handlePaymentSuccess = (paymentIntentId: string) => {
-    // Clear cart and saved data
-    clearCart();
-    localStorage.removeItem('checkoutCustomerInfo');
-    localStorage.removeItem('checkoutDiscount');
+    console.log('Payment success handler called with payment intent:', paymentIntentId);
     
-    // Redirect to confirmation page
-    router.push(`/redirect-to-confirmation?payment_intent=${paymentIntentId}`);
+    try {
+      // Clear cart and saved data
+      clearCart();
+      localStorage.removeItem('checkoutCustomerInfo');
+      localStorage.removeItem('checkoutDiscount');
+      
+      console.log('Cleared cart and localStorage, attempting redirect...');
+      
+      // Redirect to confirmation page
+      router.push(`/redirect-to-confirmation?payment_intent=${paymentIntentId}`);
+    } catch (error) {
+      console.error('Error in payment success handler:', error);
+      // Fallback: force navigation if router.push fails
+      window.location.href = `/redirect-to-confirmation?payment_intent=${paymentIntentId}`;
+    }
   };
 
   const handlePaymentError = (error: string) => {

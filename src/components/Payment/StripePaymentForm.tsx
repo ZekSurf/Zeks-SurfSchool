@@ -69,7 +69,14 @@ const CheckoutForm: React.FC<PaymentFormProps> = ({
         onError(error.message || 'Payment failed. Please try again.');
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
         // SECURITY: Removed payment intent logging - contains payment data
-        onSuccess(paymentIntent.id);
+        console.log('Payment succeeded, attempting redirect...');
+        try {
+          onSuccess(paymentIntent.id);
+        } catch (redirectError) {
+          console.error('Error during redirect:', redirectError);
+          // Fallback: force navigation if callback fails
+          window.location.href = `/redirect-to-confirmation?payment_intent=${paymentIntent.id}`;
+        }
       }
     } catch (err) {
       console.error('Payment error:', err);

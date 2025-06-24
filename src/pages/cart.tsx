@@ -21,6 +21,8 @@ export default function CartPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('Cart form submitted, validating fields...');
+    
     // Validate all required fields
     if (!contactInfo.name.trim()) {
       alert('Please enter your full name');
@@ -44,6 +46,8 @@ export default function CartPage() {
       return;
     }
     
+    console.log('Validation passed, preparing customer info...');
+    
     // Parse the full name into first and last name
     const nameParts = contactInfo.name.trim().split(' ');
     const firstName = nameParts[0] || '';
@@ -57,14 +61,22 @@ export default function CartPage() {
       phone: contactInfo.phone
     };
     
+    console.log('Saving customer info to localStorage and redirecting to payment...');
+    
     // Save formatted contact info to local storage
     localStorage.setItem('checkoutCustomerInfo', JSON.stringify(checkoutCustomerInfo));
     
     // Also save the original contact info for backward compatibility
     localStorage.setItem('contactInfo', JSON.stringify(contactInfo));
     
-    // Navigate directly to payment page
-    router.push('/payment');
+    try {
+      // Navigate directly to payment page
+      router.push('/payment');
+    } catch (error) {
+      console.error('Error redirecting to payment page:', error);
+      // Fallback: force navigation if router.push fails
+      window.location.href = '/payment';
+    }
   };
 
   const scrollToBooking = () => {
