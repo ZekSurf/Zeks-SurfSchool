@@ -9,29 +9,42 @@ export default function RedirectToConfirmation() {
   useEffect(() => {
     const { payment_intent } = router.query;
     
+    console.log('Redirect page loaded with payment_intent:', payment_intent);
+    
     if (payment_intent && typeof payment_intent === 'string') {
       // Add a small delay to allow webhook to complete
       const lookupBooking = () => {
+        console.log('Starting booking lookup for payment intent:', payment_intent);
+        
         fetch(`/api/booking/lookup-by-payment-intent?payment_intent=${payment_intent}`)
-          .then(response => response.json())
+          .then(response => {
+            console.log('Booking lookup response status:', response.status);
+            return response.json();
+          })
           .then(data => {
-          if (data.success && data.booking_id) {
-            // Force a complete page navigation to prevent reload issues
-            window.location.href = `/confirmation?booking_id=${data.booking_id}`;
-          } else {
-            // This might be an older booking that doesn't exist in our current system
-            setError(`This booking link is from an older system and may not be available. Payment Intent: ${payment_intent.slice(-8)}... Please check your email for booking details or contact support.`);
-          }
-        })
-        .catch(error => {
-                      console.error('Error fetching booking:', error);
+            console.log('Booking lookup response data:', data);
+            
+            if (data.success && data.booking_id) {
+              console.log('Booking found, redirecting to confirmation with ID:', data.booking_id);
+              // Force a complete page navigation to prevent reload issues
+              window.location.href = `/confirmation?booking_id=${data.booking_id}`;
+            } else {
+              console.error('Booking lookup failed:', data);
+              // This might be an older booking that doesn't exist in our current system
+              setError(`This booking link is from an older system and may not be available. Payment Intent: ${payment_intent.slice(-8)}... Please check your email for booking details or contact support.`);
+            }
+          })
+          .catch(error => {
+            console.error('Error fetching booking:', error);
             setError(`Unable to find booking information for this payment. Please check your email for booking details or contact support. Reference: ${payment_intent.slice(-8)}...`);
           });
       };
       
+      console.log('Waiting 2 seconds before looking up booking...');
       // Wait 2 seconds to allow webhook to save booking, then try lookup
       setTimeout(lookupBooking, 2000);
     } else {
+      console.error('No payment intent provided in redirect URL');
       setError('No payment intent provided in the link');
     }
   }, [router.query, router]);

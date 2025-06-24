@@ -63,12 +63,16 @@ export default function PaymentPage() {
       
       console.log('Cleared cart and localStorage, attempting redirect...');
       
-      // Redirect to confirmation page
-      router.push(`/redirect-to-confirmation?payment_intent=${paymentIntentId}`);
+      // Use window.location.href for more reliable navigation
+      console.log('Redirecting to:', `/redirect-to-confirmation?payment_intent=${paymentIntentId}`);
+      window.location.href = `/redirect-to-confirmation?payment_intent=${paymentIntentId}`;
     } catch (error) {
       console.error('Error in payment success handler:', error);
-      // Fallback: force navigation if router.push fails
-      window.location.href = `/redirect-to-confirmation?payment_intent=${paymentIntentId}`;
+      // Additional fallback
+      alert('Payment successful! Please wait while we redirect you to your confirmation page...');
+      setTimeout(() => {
+        window.location.href = `/redirect-to-confirmation?payment_intent=${paymentIntentId}`;
+      }, 1000);
     }
   };
 
