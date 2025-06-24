@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PUT' && req.method !== 'DELETE') {
@@ -13,6 +13,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const supabaseAdmin = getSupabaseAdmin();
+
     if (req.method === 'DELETE') {
       // Delete discount code using admin client
       const { error } = await supabaseAdmin
@@ -28,64 +30,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
 
-      return res.status(200).json({
-        success: true,
-        message: 'Discount code deleted successfully'
+      return res.status(200).json({ 
+        success: true, 
+        message: 'Discount code deleted successfully' 
       });
+    }
 
-    } else {
+    if (req.method === 'PUT') {
+      const updateData = req.body;
+      
+      // Remove any fields that shouldn't be updated
+      const allowedFields = [
+        'code', 'discount_type', 'discount_amount', 'description', 
+        'min_order_amount', 'max_uses', 'is_active', 'expires_at'
+      ];
+      
+      const filteredData = Object.keys(updateData)
+        .filter(key => allowedFields.includes(key))
+        .reduce((obj, key) => {
+          obj[key] = updateData[key];
+          return obj;
+        }, {} as any);
+
+      // Add updated_at timestamp
+      filteredData.updated_at = new Date().toISOString();
+
       // Update discount code using admin client
-      const { 
-        code, 
-        discountType, 
-        discountAmount, 
-        description, 
-        minOrderAmount, 
-        maxUses, 
-        isActive,
-        expiresAt 
-      } = req.body;
-
-      // Basic validation
-      if (code && typeof code !== 'string') {
-        return res.status(400).json({ error: 'Code must be a string' });
-      }
-
-      if (discountType && discountType !== 'percentage' && discountType !== 'fixed') {
-        return res.status(400).json({ 
-          error: 'Discount type must be either "percentage" or "fixed"' 
-        });
-      }
-
-      if (discountAmount && (typeof discountAmount !== 'number' || discountAmount <= 0)) {
-        return res.status(400).json({ 
-          error: 'Discount amount must be a positive number' 
-        });
-      }
-
-      if (discountType === 'percentage' && discountAmount && discountAmount > 100) {
-        return res.status(400).json({ 
-          error: 'Percentage discount cannot exceed 100%' 
-        });
-      }
-
-      // Build update object with only provided fields
-      const updateData: any = {
-        updated_at: new Date().toISOString()
-      };
-
-      if (code !== undefined) updateData.code = code.toUpperCase();
-      if (discountType !== undefined) updateData.discount_type = discountType;
-      if (discountAmount !== undefined) updateData.discount_amount = discountAmount;
-      if (description !== undefined) updateData.description = description;
-      if (minOrderAmount !== undefined) updateData.min_order_amount = minOrderAmount;
-      if (maxUses !== undefined) updateData.max_uses = maxUses;
-      if (isActive !== undefined) updateData.is_active = isActive;
-      if (expiresAt !== undefined) updateData.expires_at = expiresAt;
-
       const { data, error } = await supabaseAdmin
         .from('discount_codes')
-        .update(updateData)
+        .update(filteredData)
         .eq('id', id)
         .select()
         .single();

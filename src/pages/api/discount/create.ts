@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { discountService } from '@/lib/discountService';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -17,52 +17,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       expiresAt 
     } = req.body;
 
-    // Basic validation
-    if (!code || !discountType || !discountAmount) {
+    // Validate required fields
+    if (!code || !discountType || discountAmount === undefined) {
       return res.status(400).json({ 
-        error: 'Code, discount type, and discount amount are required' 
+        success: false, 
+        error: 'Code, discount type, and amount are required' 
       });
     }
 
-    if (discountType !== 'percentage' && discountType !== 'fixed') {
-      return res.status(400).json({ 
-        error: 'Discount type must be either "percentage" or "fixed"' 
-      });
-    }
+    // Get admin client
+    const supabaseAdmin = getSupabaseAdmin();
 
-    if (typeof discountAmount !== 'number' || discountAmount <= 0) {
-      return res.status(400).json({ 
-        error: 'Discount amount must be a positive number' 
-      });
-    }
+    // Create the discount code using admin client
+    const { data, error } = await supabaseAdmin
+      .from('discount_codes')
+      .insert({
+        code: code.toUpperCase(),
+        discount_type: discountType,
+        discount_amount: parseFloat(discountAmount),
+        description: description || null,
+        min_order_amount: minOrderAmount ? parseFloat(minOrderAmount) : 0,
+        max_uses: maxUses ? parseInt(maxUses) : null,
+        expires_at: expiresAt || null,
+        is_active: true,
+        current_uses: 0
+      })
+      .select()
+      .single();
 
-    if (discountType === 'percentage' && discountAmount > 100) {
-      return res.status(400).json({ 
-        error: 'Percentage discount cannot exceed 100%' 
-      });
-    }
-
-    const result = await discountService.createDiscountCode({
-      code,
-      discountType,
-      discountAmount,
-      description,
-      minOrderAmount,
-      maxUses,
-      expiresAt
-    });
-
-    if (result.success) {
-      return res.status(201).json({
-        success: true,
-        data: result.data
-      });
-    } else {
+    if (error) {
       return res.status(400).json({
         success: false,
-        error: result.error
+        error: error.message
       });
     }
+
+    return res.status(201).json({
+      success: true,
+      data: data
+    });
 
   } catch (error) {
     console.error('Error creating discount code:', error);

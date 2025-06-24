@@ -31,7 +31,7 @@ function createAdminClient() {
 // Create admin client lazily (only when needed and only on server-side)
 let _supabaseAdmin: any = null;
 
-export const supabaseAdmin = (() => {
+export function getSupabaseAdmin() {
   // Only create on server-side
   if (typeof window !== 'undefined') {
     throw new Error('supabaseAdmin can only be used on the server-side');
@@ -42,7 +42,10 @@ export const supabaseAdmin = (() => {
   }
   
   return _supabaseAdmin;
-})();
+}
+
+// Legacy export for backward compatibility - but this should only be used in server-side contexts
+export const supabaseAdmin = typeof window === 'undefined' ? getSupabaseAdmin() : null;
 
 // TypeScript interfaces for database tables
 export interface BookingRow {

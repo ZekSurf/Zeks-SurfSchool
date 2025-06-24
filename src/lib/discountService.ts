@@ -1,4 +1,4 @@
-import { supabase, supabaseAdmin, DiscountCodeRow } from './supabase';
+import { supabase, getSupabaseAdmin, DiscountCodeRow } from './supabase';
 
 export interface DiscountValidationResult {
   isValid: boolean;
@@ -34,6 +34,7 @@ class DiscountService {
 
       // Use admin client for validation (server-side operation)
       // This ensures we can always read discount codes regardless of RLS policies
+      const supabaseAdmin = getSupabaseAdmin();
       const { data: discountCode, error } = await supabaseAdmin
         .from('discount_codes')
         .select('*')
@@ -98,6 +99,7 @@ class DiscountService {
   async applyDiscount(discountId: string, orderAmount: number): Promise<ApplyDiscountResult> {
     try {
       // Use admin client for updating usage count (system operation)
+      const supabaseAdmin = getSupabaseAdmin();
       const { data: discountCode, error } = await supabaseAdmin
         .from('discount_codes')
         .select('*')
@@ -170,6 +172,7 @@ class DiscountService {
   }) {
     try {
       // Use admin client for creating discount codes (admin operation)
+      const supabaseAdmin = getSupabaseAdmin();
       const { data, error } = await supabaseAdmin
         .from('discount_codes')
         .insert({

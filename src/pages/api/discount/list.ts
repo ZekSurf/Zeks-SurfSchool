@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabaseAdmin, DiscountCodeRow } from '@/lib/supabase';
+import { getSupabaseAdmin, DiscountCodeRow } from '@/lib/supabase';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -8,6 +8,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // Use admin client to get all discount codes (including inactive ones)
+    const supabaseAdmin = getSupabaseAdmin();
     const { data: discountCodes, error } = await supabaseAdmin
       .from('discount_codes')
       .select('*')
@@ -21,19 +22,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    // Type the discountCodes array properly
+    // Type the discountCodes array properly to avoid TypeScript errors
     const typedDiscountCodes: DiscountCodeRow[] = discountCodes || [];
 
     // Calculate statistics
     const stats = {
       total: typedDiscountCodes.length,
       active: typedDiscountCodes.filter((code: DiscountCodeRow) => code.is_active).length,
-      inactive: typedDiscountCodes.filter((code: DiscountCodeRow) => !code.is_active).length,
       expired: typedDiscountCodes.filter((code: DiscountCodeRow) => 
         code.expires_at && new Date(code.expires_at) < new Date()
       ).length,
-      unlimited: typedDiscountCodes.filter((code: DiscountCodeRow) => !code.max_uses).length,
-      totalUsage: typedDiscountCodes.reduce((sum: number, code: DiscountCodeRow) => sum + (code.current_uses || 0), 0)
+      reachedLimit: typedDiscountCodes.filter((code: DiscountCodeRow) => 
+        code.max_uses && code.current_uses >= code.max_uses
+      ).length,
+      totalUses: typedDiscountCodes.reduce((sum: number, code: DiscountCodeRow) => sum + code.current_uses, 0)
     };
 
     return res.status(200).json({

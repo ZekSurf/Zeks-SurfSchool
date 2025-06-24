@@ -5,7 +5,7 @@ import { bookingService } from '@/lib/bookingService';
 import { supabaseStaffService } from '@/lib/supabaseStaffService';
 import { discountService } from '@/lib/discountService';
 import { CompletedBooking } from '@/types/booking';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-05-28.basil',
@@ -86,7 +86,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
   let bookingDetails = [];
   if (metadata.bookingRef) {
     try {
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from('temp_bookings')
         .select('*')
         .eq('id', metadata.bookingRef)
@@ -375,7 +375,7 @@ async function handleFailedPayment(paymentIntent: Stripe.PaymentIntent) {
   // Clean up temporary booking record on payment failure
   if (metadata.bookingRef) {
     try {
-      await supabaseAdmin
+      await getSupabaseAdmin()
         .from('temp_bookings')
         .delete()
         .eq('id', metadata.bookingRef);
