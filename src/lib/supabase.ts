@@ -4,7 +4,33 @@ import { BookingResponse } from '@/types/booking';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+// Public client for customer-facing operations
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Service role client for admin operations (server-side only)
+// Only create this in server-side context and when the key is available
+let supabaseAdmin: any = null;
+
+if (typeof window === 'undefined') { // Server-side only
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (serviceRoleKey) {
+    supabaseAdmin = createClient(
+      supabaseUrl, 
+      serviceRoleKey, 
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+  } else {
+    console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not found. Admin operations will not work.');
+  }
+}
+
+export { supabaseAdmin };
 
 // TypeScript interfaces for database tables
 export interface BookingRow {

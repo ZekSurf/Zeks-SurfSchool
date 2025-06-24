@@ -1,4 +1,4 @@
-import { supabase, DiscountCodeRow } from './supabase';
+import { supabase, supabaseAdmin, DiscountCodeRow } from './supabase';
 
 export interface DiscountValidationResult {
   isValid: boolean;
@@ -21,7 +21,7 @@ export interface ApplyDiscountResult {
 
 class DiscountService {
   /**
-   * Validate a discount code
+   * Validate a discount code (public operation)
    */
   async validateDiscountCode(code: string, orderAmount: number): Promise<DiscountValidationResult> {
     try {
@@ -32,8 +32,9 @@ class DiscountService {
         };
       }
 
-      // Query the discount code from Supabase
-      const { data: discountCode, error } = await supabase
+      // Use admin client for validation (server-side operation)
+      // This ensures we can always read discount codes regardless of RLS policies
+      const { data: discountCode, error } = await supabaseAdmin
         .from('discount_codes')
         .select('*')
         .eq('code', code.toUpperCase())
@@ -92,12 +93,12 @@ class DiscountService {
   }
 
   /**
-   * Apply discount and calculate final amount
+   * Apply discount and calculate final amount (system operation)
    */
   async applyDiscount(discountId: string, orderAmount: number): Promise<ApplyDiscountResult> {
     try {
-      // Get the discount code details
-      const { data: discountCode, error } = await supabase
+      // Use admin client for updating usage count (system operation)
+      const { data: discountCode, error } = await supabaseAdmin
         .from('discount_codes')
         .select('*')
         .eq('id', discountId)
@@ -124,8 +125,8 @@ class DiscountService {
       discountAmount = Math.min(discountAmount, orderAmount);
       const finalAmount = Math.max(0, orderAmount - discountAmount);
 
-      // Increment usage count
-      const { error: updateError } = await supabase
+      // Increment usage count using admin client
+      const { error: updateError } = await supabaseAdmin
         .from('discount_codes')
         .update({ 
           current_uses: discountCode.current_uses + 1,
@@ -156,7 +157,7 @@ class DiscountService {
   }
 
   /**
-   * Create a new discount code (for admin use)
+   * Create a new discount code (admin operation)
    */
   async createDiscountCode(discountData: {
     code: string;
@@ -168,7 +169,8 @@ class DiscountService {
     expiresAt?: string;
   }) {
     try {
-      const { data, error } = await supabase
+      // Use admin client for creating discount codes (admin operation)
+      const { data, error } = await supabaseAdmin
         .from('discount_codes')
         .insert({
           code: discountData.code.toUpperCase(),

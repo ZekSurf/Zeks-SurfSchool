@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-05-28.basil',
@@ -52,8 +52,8 @@ export default async function handler(
         status: 'pending'
       };
 
-      // Store in Supabase temporary bookings table
-      const { data, error } = await supabase
+      // Store in Supabase temporary bookings table using admin client
+      const { data, error } = await supabaseAdmin
         .from('temp_bookings')
         .insert(bookingData)
         .select()

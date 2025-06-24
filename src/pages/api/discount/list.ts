@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin, DiscountCodeRow } from '@/lib/supabase';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -7,7 +7,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { data: discountCodes, error } = await supabase
+    // Use admin client to get all discount codes (including inactive ones)
+    const { data: discountCodes, error } = await supabaseAdmin
       .from('discount_codes')
       .select('*')
       .order('created_at', { ascending: false });
@@ -20,21 +21,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    // Type the discountCodes array properly
+    const typedDiscountCodes: DiscountCodeRow[] = discountCodes || [];
+
     // Calculate statistics
     const stats = {
-      total: discountCodes.length,
-      active: discountCodes.filter(code => code.is_active).length,
-      inactive: discountCodes.filter(code => !code.is_active).length,
-      expired: discountCodes.filter(code => 
+      total: typedDiscountCodes.length,
+      active: typedDiscountCodes.filter((code: DiscountCodeRow) => code.is_active).length,
+      inactive: typedDiscountCodes.filter((code: DiscountCodeRow) => !code.is_active).length,
+      expired: typedDiscountCodes.filter((code: DiscountCodeRow) => 
         code.expires_at && new Date(code.expires_at) < new Date()
       ).length,
-      unlimited: discountCodes.filter(code => !code.max_uses).length,
-      totalUsage: discountCodes.reduce((sum, code) => sum + (code.current_uses || 0), 0)
+      unlimited: typedDiscountCodes.filter((code: DiscountCodeRow) => !code.max_uses).length,
+      totalUsage: typedDiscountCodes.reduce((sum: number, code: DiscountCodeRow) => sum + (code.current_uses || 0), 0)
     };
 
     return res.status(200).json({
       success: true,
-      data: discountCodes,
+      data: typedDiscountCodes,
       stats
     });
 

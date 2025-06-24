@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PUT' && req.method !== 'DELETE') {
@@ -14,8 +14,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     if (req.method === 'DELETE') {
-      // Delete discount code
-      const { error } = await supabase
+      // Delete discount code using admin client
+      const { error } = await supabaseAdmin
         .from('discount_codes')
         .delete()
         .eq('id', id);
@@ -33,8 +33,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         message: 'Discount code deleted successfully'
       });
 
-    } else if (req.method === 'PUT') {
-      // Update discount code
+    } else {
+      // Update discount code using admin client
       const { 
         code, 
         discountType, 
@@ -83,7 +83,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (isActive !== undefined) updateData.is_active = isActive;
       if (expiresAt !== undefined) updateData.expires_at = expiresAt;
 
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('discount_codes')
         .update(updateData)
         .eq('id', id)
