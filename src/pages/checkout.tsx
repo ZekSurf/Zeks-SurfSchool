@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useCart } from '@/context/CartContext';
 import { Layout } from '@/components/Layout/Layout';
-import { StripePaymentForm } from '@/components/Payment/StripePaymentForm';
+
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -30,24 +30,7 @@ export default function CheckoutPage() {
   const [discountError, setDiscountError] = useState<string | null>(null);
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
 
-  const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
-  const handlePaymentSuccess = (paymentIntentId: string) => {
-    // SECURITY: Removed payment intent logging - contains payment data
-    setPaymentSuccess(true);
-    setPaymentError(null);
-    
-    // Clear cart and redirect to confirmation page
-    clearCart();
-    router.push(`/confirmation?payment_intent=${paymentIntentId}`);
-  };
-
-  const handlePaymentError = (error: string) => {
-    console.error('Payment error:', error);
-    setPaymentError(error);
-    setPaymentSuccess(false);
-  };
 
   const scrollToBooking = () => {
     const bookingSection = document.getElementById('booking');
@@ -207,31 +190,36 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* Payment Error Display */}
-                {paymentError && (
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                    <div className="text-red-800 font-medium mb-2">Payment Error</div>
-                    <div className="text-red-600">{paymentError}</div>
-                  </div>
-                )}
-
-                {/* Stripe Payment Form */}
-                {customerInfo.firstName && customerInfo.lastName && customerInfo.email && customerInfo.phone && (
-                  <StripePaymentForm
-                    amount={finalTotal}
-                    customerInfo={customerInfo}
-                    items={items}
-                    discountInfo={appliedDiscount ? {
-                      id: appliedDiscount.id,
-                      code: appliedDiscount.code,
-                      type: appliedDiscount.type,
-                      amount: appliedDiscount.amount,
-                      discountAmount: discountAmount
-                    } : undefined}
-                    onSuccess={handlePaymentSuccess}
-                    onError={handlePaymentError}
-                  />
-                )}
+                {/* Continue to Payment Button */}
+                <div className="bg-white rounded-xl shadow-lg p-6">
+                  <h2 className="text-2xl font-semibold text-gray-800 mb-6">Payment Details</h2>
+                  
+                  <button
+                    onClick={() => {
+                      // Save customer info and navigate to payment
+                      if (customerInfo.firstName && customerInfo.lastName && customerInfo.email && customerInfo.phone) {
+                        // Save customer info to localStorage
+                        localStorage.setItem('checkoutCustomerInfo', JSON.stringify(customerInfo));
+                        // Save discount info if applied
+                        if (appliedDiscount) {
+                          localStorage.setItem('checkoutDiscount', JSON.stringify(appliedDiscount));
+                        } else {
+                          localStorage.removeItem('checkoutDiscount');
+                        }
+                        // Navigate to payment page
+                        router.push('/payment');
+                      }
+                    }}
+                    disabled={!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.phone}
+                    className={`w-full px-6 py-3 rounded-lg font-medium shadow-lg transition-all ${
+                      !customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.phone
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-[#1DA9C7] text-white hover:bg-[#1897B2] hover:shadow-xl hover:scale-[1.02]'
+                    }`}
+                  >
+                    Continue to Payment
+                  </button>
+                </div>
 
               </div>
 
@@ -366,8 +354,8 @@ export default function CheckoutPage() {
                   {/* Instructions */}
                   <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                     <p className="text-sm text-blue-800">
-                      <strong>Note:</strong> Complete your customer information above to proceed with payment.
-                      Payment will be processed securely through Stripe.
+                      <strong>Note:</strong> Complete your information above to proceed to secure payment.
+                      You'll review your order once more before finalizing.
                     </p>
                       </div>
                 </div>

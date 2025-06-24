@@ -39,6 +39,12 @@ const CheckoutForm: React.FC<PaymentFormProps> = ({
       return;
     }
 
+    // Validate customer information before processing payment
+    if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.phone) {
+      onError('Please complete all customer information fields above before proceeding with payment.');
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
@@ -116,6 +122,8 @@ const CheckoutForm: React.FC<PaymentFormProps> = ({
             'Complete Purchase'
           )}
         </button>
+        
+
       </div>
     </form>
   );
@@ -154,6 +162,11 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Only create PaymentIntent if we have valid customer info
+    if (!customerInfo.email || !customerInfo.firstName || !customerInfo.lastName || !customerInfo.phone) {
+      return;
+    }
+
     // Create PaymentIntent as soon as the component loads
     const createPaymentIntent = async () => {
       try {

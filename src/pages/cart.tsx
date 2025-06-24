@@ -20,10 +20,51 @@ export default function CartPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Save contact info to local storage for use in checkout
+    
+    // Validate all required fields
+    if (!contactInfo.name.trim()) {
+      alert('Please enter your full name');
+      return;
+    }
+    
+    if (!contactInfo.email.trim()) {
+      alert('Please enter your email address');
+      return;
+    }
+    
+    if (!contactInfo.phone.trim()) {
+      alert('Please enter your phone number');
+      return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(contactInfo.email)) {
+      alert('Please enter a valid email address');
+      return;
+    }
+    
+    // Parse the full name into first and last name
+    const nameParts = contactInfo.name.trim().split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    
+    // Format contact info to match checkout page expectations
+    const checkoutCustomerInfo = {
+      firstName,
+      lastName,
+      email: contactInfo.email,
+      phone: contactInfo.phone
+    };
+    
+    // Save formatted contact info to local storage
+    localStorage.setItem('checkoutCustomerInfo', JSON.stringify(checkoutCustomerInfo));
+    
+    // Also save the original contact info for backward compatibility
     localStorage.setItem('contactInfo', JSON.stringify(contactInfo));
-    // Navigate to checkout page
-    router.push('/checkout');
+    
+    // Navigate directly to payment page
+    router.push('/payment');
   };
 
   const scrollToBooking = () => {
