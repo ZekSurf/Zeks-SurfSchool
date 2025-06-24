@@ -7,6 +7,12 @@ export default function RedirectToConfirmation() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Wait for router to be ready before accessing query parameters
+    if (!router.isReady) {
+      console.log('Router not ready yet, waiting...');
+      return;
+    }
+
     const { payment_intent } = router.query;
     
     console.log('Redirect page loaded with payment_intent:', payment_intent);
@@ -47,7 +53,7 @@ export default function RedirectToConfirmation() {
       console.error('No payment intent provided in redirect URL');
       setError('No payment intent provided in the link');
     }
-  }, [router.query, router]);
+  }, [router.query, router.isReady]);
 
   return (
     <>
@@ -58,7 +64,7 @@ export default function RedirectToConfirmation() {
       
       <div className="min-h-screen bg-neutral flex items-center justify-center">
         <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md">
-          {!error ? (
+          {!router.isReady || (!error && router.isReady) ? (
             <>
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
