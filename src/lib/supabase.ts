@@ -8,29 +8,41 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Service role client for admin operations (server-side only)
-// Only create this in server-side context and when the key is available
-let supabaseAdmin: any = null;
-
-if (typeof window === 'undefined') { // Server-side only
+function createAdminClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   
-  if (serviceRoleKey) {
-    supabaseAdmin = createClient(
-      supabaseUrl, 
-      serviceRoleKey, 
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-  } else {
-    console.warn('⚠️ SUPABASE_SERVICE_ROLE_KEY not found. Admin operations will not work.');
+  if (!serviceRoleKey) {
+    console.error('❌ SUPABASE_SERVICE_ROLE_KEY is missing. Admin operations will fail.');
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is required for admin operations');
   }
+
+  return createClient(
+    supabaseUrl, 
+    serviceRoleKey, 
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  );
 }
 
-export { supabaseAdmin };
+// Create admin client lazily (only when needed and only on server-side)
+let _supabaseAdmin: any = null;
+
+export const supabaseAdmin = (() => {
+  // Only create on server-side
+  if (typeof window !== 'undefined') {
+    throw new Error('supabaseAdmin can only be used on the server-side');
+  }
+  
+  if (!_supabaseAdmin) {
+    _supabaseAdmin = createAdminClient();
+  }
+  
+  return _supabaseAdmin;
+})();
 
 // TypeScript interfaces for database tables
 export interface BookingRow {

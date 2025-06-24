@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-05-28.basil',
@@ -52,19 +52,28 @@ export default async function handler(
         status: 'pending'
       };
 
-      // Store in Supabase temporary bookings table using admin client
-      const { data, error } = await supabaseAdmin
-        .from('temp_bookings')
-        .insert(bookingData)
-        .select()
-        .single();
+      // Store in Supabase temporary bookings table (using public client temporarily)
+      try {
+        const { data, error } = await supabase
+          .from('temp_bookings')
+          .insert(bookingData)
+          .select()
+          .single();
 
-      if (error) {
-        console.error('Error storing booking data:', error);
-        return res.status(500).json({ error: 'Failed to store booking data' });
+        if (error) {
+          console.error('Error storing booking data:', error);
+          return res.status(500).json({ 
+            error: 'Failed to store booking data. Please try again.' 
+          });
+        }
+
+        bookingReference = data.id;
+      } catch (dbError) {
+        console.error('Database error:', dbError);
+        return res.status(500).json({ 
+          error: 'Database connection failed. Please try again.' 
+        });
       }
-
-      bookingReference = data.id;
     }
 
     // Create or retrieve customer
@@ -117,6 +126,16 @@ export default async function handler(
     });
   } catch (error) {
     console.error('Error creating payment intent:', error);
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+        return res.status(500).json({ 
+          error: 'Server configuration error. Please contact support.' 
+        });
+      }
+    }
+    
     res.status(500).json({ 
       error: error instanceof Error ? error.message : 'Internal Server Error' 
     });
