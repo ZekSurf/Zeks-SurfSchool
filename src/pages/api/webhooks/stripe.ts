@@ -195,7 +195,6 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     customerName: metadata.customerName,
     customerEmail: metadata.customerEmail,
     customerPhone: metadata.customerPhone,
-    wetsuitSize: firstBooking.wetsuitSize || metadata.wetsuitSize || '',
     specialRequests: metadata.specialRequests || '',
     discountApplied: !!discountInfo,
     discountCode: discountInfo?.code || null,
@@ -204,21 +203,8 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     discountSavings: discountInfo?.discountSavings || 0,
     isPrivate: isPrivateLesson,
     lessonsBooked: bookingDetails.length,
-    // For single lesson: keep backward compatibility with slotData
-    slotData: allSlotData.length === 1 ? allSlotData[0] : {
-      beach: firstBooking.beach,
-      date: new Date(startDateTime).toISOString().split('T')[0],
-      slotId: firstBooking.slotId || `fallback-${Date.now()}`,
-      startTime: startDateTime,
-      endTime: endDateTime,
-      label: "Good",
-      price: firstBooking.price,
-      openSpaces: originalOpenSpaces,
-      available: originalAvailable,
-      wetsuitSize: firstBooking.wetsuitSize || metadata.wetsuitSize || ''
-    },
-    // For multiple lessons: add allSlotData array
-    ...(allSlotData.length > 1 && { allSlotData }),
+    // slotData is now always an array containing all lessons booked
+    slotData: allSlotData,
     timestamp: new Date().toISOString()
   };
 
