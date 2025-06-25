@@ -164,35 +164,7 @@ export class WaiverService {
     }
   }
 
-  /**
-   * Clean up orphaned waiver signatures (payment failed or abandoned)
-   * Should be called periodically via cron job
-   */
-  static async cleanupOrphanedSignatures(): Promise<{ success: boolean; deletedCount?: number; error?: string }> {
-    try {
-      const supabaseAdmin = getSupabaseAdmin();
 
-      // Delete waiver signatures older than 24 hours that don't have a booking_id
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
-      const { data, error } = await supabaseAdmin
-        .from('waiver_signatures')
-        .delete()
-        .is('booking_id', null)
-        .lt('created_at', oneDayAgo)
-        .select('id');
-
-      if (error) {
-        console.error('Error cleaning up orphaned waiver signatures:', error);
-        return { success: false, error: error.message };
-      }
-
-      return { success: true, deletedCount: data?.length || 0 };
-    } catch (error) {
-      console.error('Error in cleanupOrphanedSignatures:', error);
-      return { success: false, error: 'Failed to cleanup orphaned signatures' };
-    }
-  }
 }
 
 export const waiverService = WaiverService; 

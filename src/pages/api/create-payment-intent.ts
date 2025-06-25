@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
 import { supabase } from '@/lib/supabase';
+import { waiverService } from '@/lib/waiverService';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-05-28.basil',
@@ -16,7 +17,7 @@ export default async function handler(
   }
 
   try {
-    const { amount, currency = 'usd', customerInfo, items, discountInfo } = req.body;
+    const { amount, currency = 'usd', customerInfo, items, discountInfo, waiverData } = req.body;
 
     // Validate required fields
     if (!amount || amount <= 0) {
@@ -119,6 +120,38 @@ export default async function handler(
         }),
       },
     });
+
+    // Save waiver signature if waiver data is provided
+    if (waiverData && items && items.length > 0) {
+      try {
+        const firstItem = items[0]; // Get the slot ID from the first item
+        const clientInfo = waiverService.getClientInfo(req);
+        
+        const waiverResult = await waiverService.storeTemporaryWaiverSignature({
+          slotId: firstItem.slotId,
+          paymentIntentId: paymentIntent.id,
+          signerName: waiverData.guardianName || waiverData.participantName,
+          participantName: waiverData.participantName,
+          guardianName: waiverData.guardianName,
+          isMinor: !!waiverData.guardianName,
+          customerEmail: customerInfo.email,
+          customerPhone: customerInfo.phone,
+          emergencyContactName: waiverData.emergencyContactName,
+          emergencyContactPhone: waiverData.emergencyContactPhone,
+          medicalConditions: waiverData.medicalConditions,
+          ipAddress: clientInfo.ip_address,
+          userAgent: clientInfo.user_agent
+        });
+
+        if (!waiverResult.success) {
+          console.error('Failed to save waiver signature:', waiverResult.error);
+          // Don't fail the payment intent creation, just log the error
+        }
+      } catch (waiverError) {
+        console.error('Error saving waiver signature:', waiverError);
+        // Don't fail the payment intent creation
+      }
+    }
 
     res.status(200).json({
       clientSecret: paymentIntent.client_secret,

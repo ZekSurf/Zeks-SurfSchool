@@ -198,6 +198,8 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
   const handleWaiverAccept = (data: any) => {
     setWaiverSigned(true);
     setWaiverData(data);
+    // Save waiver data to localStorage for payment processing
+    localStorage.setItem('waiverData', JSON.stringify(data));
     setShowWaiverModal(false);
     executeAction();
   };

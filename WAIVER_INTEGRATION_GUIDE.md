@@ -8,7 +8,7 @@ This implementation adds a comprehensive waiver signature system to Zek's Surf S
 - Finalizes signatures only after successful payment
 - Includes emergency contact and medical information for safety
 - Maintains legal compliance with IP address and audit trail
-- Automatically cleans up abandoned signatures
+- Preserves all signatures for compliance and record keeping
 
 ## Database Schema
 
@@ -32,10 +32,10 @@ Run the SQL in `waiver_signatures_schema.sql` in your Supabase SQL editor to cre
 3. System calls `waiverService.finalizeWaiverSignature()` to update with booking ID
 4. Waiver is now permanently linked to the completed booking
 
-### 3. Cleanup (Cron Job)
-- Endpoint: `/api/cron/cleanup-waivers`
-- Removes orphaned signatures older than 24 hours without booking_id
-- Should be called daily via cron service or Vercel cron
+### 3. Data Retention
+- All waiver signatures are preserved permanently for legal compliance
+- Failed payment signatures remain in database for audit purposes
+- Manual deletion available through admin interface if needed
 
 ## Required Environment Variables
 
@@ -45,13 +45,16 @@ No additional environment variables needed - uses existing `SUPABASE_SERVICE_ROL
 
 ### New Files
 - `src/lib/waiverService.ts` - Core waiver signature logic
-- `src/pages/api/waiver/save-signature.ts` - API to save signatures
-- `src/pages/api/cron/cleanup-waivers.ts` - Cleanup orphaned signatures
+- `src/pages/api/waiver/save-signature.ts` - API to save signatures (now unused - integrated directly into payment flow)
 - `waiver_signatures_schema.sql` - Database schema
 
 ### Modified Files
 - `src/components/Booking/WaiverAgreement.tsx` - Added emergency contact fields
+- `src/components/Booking/BookingDetails.tsx` - Added waiver data to localStorage
+- `src/components/Payment/StripePaymentForm.tsx` - Pass waiver data to payment intent
+- `src/pages/api/create-payment-intent.ts` - Save waiver signatures during payment
 - `src/pages/api/webhooks/stripe.ts` - Added waiver finalization
+- `src/pages/payment.tsx` - Clear waiver data after successful payment
 - `src/types/booking.ts` - Added waiver interfaces
 
 ## Integration Steps
@@ -61,33 +64,14 @@ No additional environment variables needed - uses existing `SUPABASE_SERVICE_ROL
 -- Run the SQL in waiver_signatures_schema.sql in Supabase
 ```
 
-### 2. Update Checkout Flow
-You need to integrate the waiver signature API call into your checkout process. Here's how:
+### 2. Integration Complete!
+The waiver signature system is now fully integrated into your existing checkout flow:
 
-```typescript
-// In your checkout component, after waiver is signed and before payment:
-const saveWaiverSignature = async (waiverData: WaiverData, paymentIntentId: string, slotId: string) => {
-  const response = await fetch('/api/waiver/save-signature', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      slotId,
-      paymentIntentId,
-      signerName: waiverData.guardianName || waiverData.participantName,
-      participantName: waiverData.participantName,
-      guardianName: waiverData.guardianName,
-      isMinor: !!waiverData.guardianName,
-      customerEmail: customerInfo.email,
-      customerPhone: customerInfo.phone,
-      emergencyContactName: waiverData.emergencyContactName,
-      emergencyContactPhone: waiverData.emergencyContactPhone,
-      medicalConditions: waiverData.medicalConditions
-    })
-  });
-
-  return await response.json();
-};
-```
+1. **Booking Page**: Users sign waiver with emergency contact info
+2. **Waiver Data Storage**: Saved to localStorage automatically
+3. **Payment Intent**: Waiver signature saved to database when payment intent is created
+4. **Payment Success**: Waiver finalized with booking confirmation number
+5. **Cleanup**: Local storage cleared after successful payment
 
 ### 3. Data Collected
 
@@ -133,7 +117,7 @@ You might also consider collecting:
 ### Data Protection
 - Medical information stored securely
 - Emergency contact data for safety purposes
-- Automatic cleanup of abandoned signatures
+- All signatures preserved for legal compliance
 - No PII in logs (production mode)
 
 ## Legal Considerations
@@ -166,20 +150,19 @@ Saves waiver signature temporarily during checkout.
 }
 ```
 
-### `/api/cron/cleanup-waivers` (GET/POST)
-Cleans up orphaned waiver signatures (should be called daily).
+
 
 ## Monitoring & Maintenance
 
 ### Recommended Monitoring
-- Track orphaned signature cleanup counts
 - Monitor waiver signature success rates
 - Alert on waiver finalization failures
+- Track waiver data integrity
 
 ### Maintenance Tasks
-- Run daily cleanup of orphaned signatures
 - Periodic backup of waiver data
 - Review waiver version updates as needed
+- Monitor database storage usage
 
 ## Testing
 
@@ -193,11 +176,15 @@ Cleans up orphaned waiver signatures (should be called daily).
 
 ### Test Commands
 ```bash
-# Test cleanup endpoint
-curl https://your-domain.com/api/cron/cleanup-waivers
-
 # Verify waiver signature in database
 # Check Supabase dashboard for waiver_signatures table
+
+# Test complete booking flow with waiver
+# 1. Go to booking page
+# 2. Select a lesson slot
+# 3. Fill out waiver with emergency contact info
+# 4. Complete checkout and payment
+# 5. Verify signature appears in waiver_signatures table
 ```
 
 ## Future Enhancements
