@@ -172,6 +172,20 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     }
   }
 
+  // Create slot data array for all lessons
+  const allSlotData = bookingDetails.map((booking: any) => ({
+    beach: booking.beach,
+    date: new Date(booking.startTime).toISOString().split('T')[0], // Extract date from startTime
+    slotId: booking.slotId || `fallback-${Date.now()}`, // Use actual slot ID or fallback
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    label: "Good", // Default label - you can enhance this based on conditions
+    price: booking.price,
+    openSpaces: booking.openSpaces || 4, // Original cached open spaces value
+    available: booking.available !== undefined ? booking.available : true, // Original cached availability value
+    wetsuitSize: booking.wetsuitSize || metadata.wetsuitSize || ''
+  }));
+
   // Create the formatted booking data for n8n
   const bookingData = {
     paymentIntentId: paymentIntent.id,
@@ -190,17 +204,21 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     discountSavings: discountInfo?.discountSavings || 0,
     isPrivate: isPrivateLesson,
     lessonsBooked: bookingDetails.length,
-    slotData: {
+    // For single lesson: keep backward compatibility with slotData
+    slotData: allSlotData.length === 1 ? allSlotData[0] : {
       beach: firstBooking.beach,
-      date: new Date(startDateTime).toISOString().split('T')[0], // Extract date from startTime
-      slotId: firstBooking.slotId || `fallback-${Date.now()}`, // Use actual slot ID or fallback
+      date: new Date(startDateTime).toISOString().split('T')[0],
+      slotId: firstBooking.slotId || `fallback-${Date.now()}`,
       startTime: startDateTime,
       endTime: endDateTime,
-      label: "Good", // Default label - you can enhance this based on conditions
+      label: "Good",
       price: firstBooking.price,
-      openSpaces: originalOpenSpaces, // Original cached open spaces value
-      available: originalAvailable // Original cached availability value
+      openSpaces: originalOpenSpaces,
+      available: originalAvailable,
+      wetsuitSize: firstBooking.wetsuitSize || metadata.wetsuitSize || ''
     },
+    // For multiple lessons: add allSlotData array
+    ...(allSlotData.length > 1 && { allSlotData }),
     timestamp: new Date().toISOString()
   };
 
