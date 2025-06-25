@@ -56,4 +56,35 @@ export interface StaffPinConfig {
   createdAt: string;
   lastUsed?: string;
   isActive: boolean;
+}
+
+export interface WaiverSignature {
+  id?: string;
+  slot_id: string;
+  payment_intent_id?: string;
+  booking_id?: string;
+  signer_name: string;
+  participant_name: string;
+  guardian_name?: string;
+  is_minor: boolean;
+  customer_email: string;
+  customer_phone: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  medical_conditions?: string;
+  signed_at: string;
+  ip_address: string;
+  user_agent: string;
+  waiver_version: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface WaiverData {
+  participantName: string;
+  guardianName?: string;
+  date: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  medicalConditions?: string;
 } 

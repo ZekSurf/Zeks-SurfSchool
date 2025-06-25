@@ -4,6 +4,7 @@ import { buffer } from 'micro';
 import { bookingService } from '@/lib/bookingService';
 import { supabaseStaffService } from '@/lib/supabaseStaffService';
 import { discountService } from '@/lib/discountService';
+import { waiverService } from '@/lib/waiverService';
 import { CompletedBooking } from '@/types/booking';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
@@ -366,6 +367,29 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     // Don't throw error here - cache clearing failure shouldn't break webhook
   }
 
+  // Finalize waiver signature with booking confirmation number
+  try {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('📝 Finalizing waiver signature...');
+    }
+
+    const waiverResult = await waiverService.finalizeWaiverSignature(
+      paymentIntent.id,
+      confirmationNumber
+    );
+
+    if (waiverResult.success) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ Waiver signature finalized successfully');
+      }
+    } else {
+      console.error('❌ Failed to finalize waiver signature:', waiverResult.error);
+      // Don't throw error - booking should still succeed even if waiver finalization fails
+    }
+  } catch (error) {
+    console.error('💥 Exception while finalizing waiver signature:', error);
+    // Don't throw error here - waiver failure shouldn't break webhook
+  }
 
 }
 

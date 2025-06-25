@@ -5,6 +5,9 @@ interface WaiverAgreementProps {
     participantName: string;
     guardianName?: string;
     date: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
+    medicalConditions?: string;
   }) => void;
 }
 
@@ -12,6 +15,9 @@ export const WaiverAgreement: React.FC<WaiverAgreementProps> = ({ onAccept }) =>
   const [participantName, setParticipantName] = useState('');
   const [guardianName, setGuardianName] = useState('');
   const [isMinor, setIsMinor] = useState(false);
+  const [emergencyContactName, setEmergencyContactName] = useState('');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
+  const [medicalConditions, setMedicalConditions] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
 
@@ -26,6 +32,14 @@ export const WaiverAgreement: React.FC<WaiverAgreementProps> = ({ onAccept }) =>
       setError('Parent/Guardian name is required for minors.');
       return;
     }
+    if (!emergencyContactName.trim()) {
+      setError('Emergency contact name is required.');
+      return;
+    }
+    if (!emergencyContactPhone.trim()) {
+      setError('Emergency contact phone is required.');
+      return;
+    }
     if (!agreed) {
       setError('You must agree to the waiver.');
       return;
@@ -35,6 +49,9 @@ export const WaiverAgreement: React.FC<WaiverAgreementProps> = ({ onAccept }) =>
       participantName,
       guardianName: isMinor ? guardianName : undefined,
       date: today,
+      emergencyContactName,
+      emergencyContactPhone,
+      medicalConditions: medicalConditions.trim() || undefined,
     });
   };
 
@@ -123,8 +140,10 @@ This agreement is governed by the laws of the State of California. Any disputes 
 By signing below, I acknowledge I have read, understood, and voluntarily agree to all terms. I confirm this waiver is signed before participation in any Activities.
 `}
       </div>
+      
+      {/* Participant Information */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Participant Name</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Participant Name *</label>
         <input
           type="text"
           className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
@@ -133,6 +152,7 @@ By signing below, I acknowledge I have read, understood, and voluntarily agree t
           placeholder="Enter participant's full name"
         />
       </div>
+      
       <div className="mb-4 flex items-center gap-2">
         <input
           type="checkbox"
@@ -142,9 +162,10 @@ By signing below, I acknowledge I have read, understood, and voluntarily agree t
         />
         <label htmlFor="isMinor" className="text-sm text-gray-700">Participant is under 18</label>
       </div>
+      
       {isMinor && (
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Parent/Guardian Name</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Parent/Guardian Name *</label>
           <input
             type="text"
             className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
@@ -154,6 +175,51 @@ By signing below, I acknowledge I have read, understood, and voluntarily agree t
           />
         </div>
       )}
+
+      {/* Emergency Contact Information */}
+      <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <h3 className="font-medium text-gray-800 mb-3">Emergency Contact Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Name *</label>
+            <input
+              type="text"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
+              value={emergencyContactName}
+              onChange={e => setEmergencyContactName(e.target.value)}
+              placeholder="Full name of emergency contact"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact Phone *</label>
+            <input
+              type="tel"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
+              value={emergencyContactPhone}
+              onChange={e => setEmergencyContactPhone(e.target.value)}
+              placeholder="(555) 123-4567"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Medical Conditions */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Medical Conditions or Concerns (Optional)
+        </label>
+        <textarea
+          className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#1DA9C7] focus:border-[#1DA9C7]"
+          rows={3}
+          value={medicalConditions}
+          onChange={e => setMedicalConditions(e.target.value)}
+          placeholder="Please list any medical conditions, allergies, or concerns that instructors should be aware of..."
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          This helps our instructors provide better assistance and ensure your safety.
+        </p>
+      </div>
+
       <div className="mb-4 flex items-center gap-2">
         <input
           type="checkbox"
@@ -163,6 +229,7 @@ By signing below, I acknowledge I have read, understood, and voluntarily agree t
         />
         <label htmlFor="agreed" className="text-sm text-gray-700">I have read and agree to the waiver above.</label>
       </div>
+      
       <div className="mb-4">
         <label className="block text-xs text-gray-500">Date</label>
         <input
@@ -172,11 +239,13 @@ By signing below, I acknowledge I have read, understood, and voluntarily agree t
           readOnly
         />
       </div>
+      
       {error && <div className="text-red-600 mb-4 text-sm">{error}</div>}
+      
       <button
         className="w-full bg-[#1DA9C7] text-white py-3 rounded-lg font-semibold hover:bg-[#1897B2] transition-colors disabled:opacity-50"
         onClick={handleContinue}
-        disabled={!participantName || (isMinor && !guardianName) || !agreed}
+        disabled={!participantName || (isMinor && !guardianName) || !emergencyContactName || !emergencyContactPhone || !agreed}
       >
         Continue
       </button>
