@@ -203,10 +203,8 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     discountSavings: discountInfo?.discountSavings || 0,
     isPrivate: isPrivateLesson,
     lessonsBooked: bookingDetails.length,
-    // For Supabase booking, use the first slot data (required fields)
-    slotData: allSlotData[0], // Use first slot for main booking record
-    // For n8n, include all slot data
-    allSlotData: allSlotData,
+    // Send all slot data as slotData array (for n8n processing)
+    slotData: allSlotData,
     timestamp: new Date().toISOString()
   };
 

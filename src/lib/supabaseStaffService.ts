@@ -71,6 +71,9 @@ class SupabaseStaffService {
   // Save booking from Stripe webhook data
   public async saveBookingFromStripeData(stripeData: any): Promise<{ success: boolean; booking?: CompletedBooking; error?: string }> {
     try {
+      // Use the first slot data for the main booking record (since slotData is now an array)
+      const firstSlot = Array.isArray(stripeData.slotData) ? stripeData.slotData[0] : stripeData.slotData;
+      
       // Create the database row directly without pre-generating the ID
       // Let Supabase generate the UUID automatically
       const dbRow = {
@@ -79,10 +82,10 @@ class SupabaseStaffService {
         customer_name: stripeData.customerName,
         customer_email: stripeData.customerEmail,
         customer_phone: stripeData.customerPhone || '',
-        beach: stripeData.slotData?.beach || 'Unknown',
-        lesson_date: stripeData.slotData?.date || new Date().toISOString().split('T')[0],
-        start_time: stripeData.slotData?.startTime || '',
-        end_time: stripeData.slotData?.endTime || '',
+        beach: firstSlot?.beach || 'Unknown',
+        lesson_date: firstSlot?.date || new Date().toISOString().split('T')[0],
+        start_time: firstSlot?.startTime || '',
+        end_time: firstSlot?.endTime || '',
         price: stripeData.amount || 0,
         lessons_booked: stripeData.lessonsBooked || 1,
         is_private: stripeData.isPrivate || false,
