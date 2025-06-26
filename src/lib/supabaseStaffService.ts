@@ -1,4 +1,4 @@
-import { supabase, BookingRow, StaffPinRow } from './supabase';
+import { supabase, BookingRow, StaffPinRow, getSupabaseAdmin } from './supabase';
 import { CompletedBooking, StaffPinConfig } from '@/types/booking';
 
 class SupabaseStaffService {
@@ -48,7 +48,7 @@ class SupabaseStaffService {
     try {
       const dbRow = this.bookingToDbRow(booking);
       
-      const { error } = await supabase
+      const { error } = await getSupabaseAdmin()
         .from('bookings')
         .upsert(dbRow, { 
           onConflict: 'payment_intent_id',
@@ -97,7 +97,7 @@ class SupabaseStaffService {
       };
 
       // Insert and return the created record with the generated UUID
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseAdmin()
         .from('bookings')
         .insert(dbRowWithId)
         .select()
@@ -125,7 +125,7 @@ class SupabaseStaffService {
   // Get all bookings
   public async getAllBookings(): Promise<{ success: boolean; bookings: CompletedBooking[]; error?: string }> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseAdmin()
         .from('bookings')
         .select('*')
         .order('lesson_date', { ascending: true })
@@ -136,7 +136,7 @@ class SupabaseStaffService {
         return { success: false, bookings: [], error: error.message };
       }
 
-      const bookings = (data || []).map(row => this.dbRowToBooking(row));
+      const bookings = (data || []).map((row: BookingRow) => this.dbRowToBooking(row));
       return { success: true, bookings };
     } catch (error) {
       console.error('Error fetching bookings from Supabase:', error);
@@ -161,7 +161,7 @@ class SupabaseStaffService {
       const startDateStr = startOfWeek.toISOString().split('T')[0];
       const endDateStr = endOfWeek.toISOString().split('T')[0];
 
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseAdmin()
         .from('bookings')
         .select('*')
         .gte('lesson_date', startDateStr)
@@ -174,7 +174,7 @@ class SupabaseStaffService {
         return { success: false, bookings: [], error: error.message };
       }
 
-      const bookings = (data || []).map(row => this.dbRowToBooking(row));
+      const bookings = (data || []).map((row: BookingRow) => this.dbRowToBooking(row));
       return { success: true, bookings };
     } catch (error) {
       console.error('Error fetching week bookings from Supabase:', error);
@@ -185,7 +185,7 @@ class SupabaseStaffService {
   // Get bookings for a specific date
   public async getBookingsForDate(date: string): Promise<{ success: boolean; bookings: CompletedBooking[]; error?: string }> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabaseAdmin()
         .from('bookings')
         .select('*')
         .eq('lesson_date', date)
@@ -196,7 +196,7 @@ class SupabaseStaffService {
         return { success: false, bookings: [], error: error.message };
       }
 
-      const bookings = (data || []).map(row => this.dbRowToBooking(row));
+      const bookings = (data || []).map((row: BookingRow) => this.dbRowToBooking(row));
       return { success: true, bookings };
     } catch (error) {
       console.error('Error fetching date bookings from Supabase:', error);
@@ -207,7 +207,7 @@ class SupabaseStaffService {
   // Update booking status
   public async updateBookingStatus(bookingId: string, status: CompletedBooking['status']): Promise<{ success: boolean; error?: string }> {
     try {
-      const { error } = await supabase
+      const { error } = await getSupabaseAdmin()
         .from('bookings')
         .update({ 
           status,
@@ -299,7 +299,7 @@ class SupabaseStaffService {
       // Check if we're on the server side or client side
       if (typeof window === 'undefined') {
         // Server-side: query database directly
-        const { data: staffData, error: fetchError } = await supabase
+        const { data: staffData, error: fetchError } = await getSupabaseAdmin()
           .from('staff_pins')
           .select('*')
           .eq('pin', pin)
@@ -315,7 +315,7 @@ class SupabaseStaffService {
 
         // Update last_used_at if PIN is valid
         if (isValid) {
-          await supabase
+          await getSupabaseAdmin()
             .from('staff_pins')
             .update({ last_used_at: new Date().toISOString() })
             .eq('id', staffData.id);
@@ -441,7 +441,7 @@ class SupabaseStaffService {
   // Clear all bookings (admin function)
   public async clearAllBookings(): Promise<{ success: boolean; error?: string }> {
     try {
-      const { error } = await supabase
+      const { error } = await getSupabaseAdmin()
         .from('bookings')
         .delete()
         .neq('id', ''); // Delete all records

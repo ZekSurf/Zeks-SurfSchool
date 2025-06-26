@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Only allow GET requests
@@ -23,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Look up the booking UUID by payment intent ID
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('bookings')
       .select('id, confirmation_number, created_at')
       .eq('payment_intent_id', payment_intent)
@@ -34,13 +34,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.error('❌ Supabase lookup error:', error);
         
         // Also check if there are any bookings at all for debugging
-        const { data: allBookings } = await supabase
+        const { data: allBookings } = await getSupabaseAdmin()
           .from('bookings')
           .select('id, payment_intent_id, created_at')
           .order('created_at', { ascending: false })
           .limit(5);
         
-        console.log('📊 Recent bookings in database:', allBookings?.map(b => ({
+        console.log('📊 Recent bookings in database:', allBookings?.map((b: any) => ({
           id: b.id.slice(0, 8),
           payment_intent: b.payment_intent_id?.slice(-8),
           created: b.created_at
