@@ -124,7 +124,7 @@ export const DATABASE_SCHEMAS = {
   bookings: `
     CREATE TABLE IF NOT EXISTS bookings (
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-      payment_intent_id TEXT UNIQUE NOT NULL,
+      payment_intent_id TEXT NOT NULL,
       confirmation_number TEXT UNIQUE NOT NULL,
       amount DECIMAL(10,2) NOT NULL,
       currency TEXT NOT NULL DEFAULT 'usd',
