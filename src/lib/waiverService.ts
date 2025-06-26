@@ -111,6 +111,38 @@ export class WaiverService {
   }
 
   /**
+   * Update all waiver signatures for a payment intent with booking confirmation number
+   * This handles multiple lessons with multiple waivers
+   */
+  static async finalizeAllWaiverSignatures(
+    paymentIntentId: string, 
+    bookingId: string
+  ): Promise<{ success: boolean; count?: number; error?: string }> {
+    try {
+      const supabaseAdmin = getSupabaseAdmin();
+
+      const { data, error } = await supabaseAdmin
+        .from('waiver_signatures')
+        .update({ 
+          booking_id: bookingId,
+          updated_at: new Date().toISOString()
+        })
+        .eq('payment_intent_id', paymentIntentId)
+        .select('id');
+
+      if (error) {
+        console.error('Error finalizing waiver signatures:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, count: data?.length || 0 };
+    } catch (error) {
+      console.error('Error in finalizeAllWaiverSignatures:', error);
+      return { success: false, error: 'Failed to finalize waiver signatures' };
+    }
+  }
+
+  /**
    * Get waiver signature by payment intent ID
    */
   static async getWaiverByPaymentIntent(

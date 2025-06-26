@@ -60,7 +60,7 @@ export default function PaymentPage() {
       clearCart();
       localStorage.removeItem('checkoutCustomerInfo');
       localStorage.removeItem('checkoutDiscount');
-      localStorage.removeItem('waiverData'); // Clear waiver data
+      localStorage.removeItem('waiverDataArray'); // Clear waiver data array
       localStorage.removeItem('contactInfo'); // Clear contact info
       
       console.log('Cleared cart and localStorage, attempting redirect...');

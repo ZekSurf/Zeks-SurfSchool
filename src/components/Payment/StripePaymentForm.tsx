@@ -181,9 +181,9 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
         const contactInfoJson = localStorage.getItem('contactInfo');
         const contactInfo = contactInfoJson ? JSON.parse(contactInfoJson) : {};
 
-        // Get waiver data from localStorage if available
-        const waiverDataJson = localStorage.getItem('waiverData');
-        const waiverData = waiverDataJson ? JSON.parse(waiverDataJson) : null;
+        // Get waiver data array from localStorage if available
+        const waiverDataArrayJson = localStorage.getItem('waiverDataArray');
+        const waiverDataArray = waiverDataArrayJson ? JSON.parse(waiverDataArrayJson) : [];
 
         const response = await fetch('/api/create-payment-intent', {
           method: 'POST',
@@ -196,7 +196,7 @@ export const StripePaymentForm: React.FC<StripePaymentFormProps> = ({
             items,
             contactInfo, // Include contact info with wetsuit size
             discountInfo, // Include discount information
-            waiverData, // Include waiver signature data
+            waiverDataArray, // Include array of waiver signature data
           }),
         });
 

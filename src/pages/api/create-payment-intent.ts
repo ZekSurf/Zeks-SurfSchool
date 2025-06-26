@@ -17,7 +17,7 @@ export default async function handler(
   }
 
   try {
-    const { amount, currency = 'usd', customerInfo, items, discountInfo, waiverData } = req.body;
+    const { amount, currency = 'usd', customerInfo, items, discountInfo, waiverDataArray } = req.body;
 
     // Validate required fields
     if (!amount || amount <= 0) {
@@ -121,34 +121,41 @@ export default async function handler(
       },
     });
 
-    // Save waiver signature if waiver data is provided
-    if (waiverData && items && items.length > 0) {
+    // Save waiver signatures for all lessons if waiver data is provided
+    if (waiverDataArray && Array.isArray(waiverDataArray) && waiverDataArray.length > 0 && items && items.length > 0) {
       try {
-        const firstItem = items[0]; // Get the slot ID from the first item
         const clientInfo = waiverService.getClientInfo(req);
         
-        const waiverResult = await waiverService.storeTemporaryWaiverSignature({
-          slotId: firstItem.slotId,
-          paymentIntentId: paymentIntent.id,
-          signerName: waiverData.guardianName || waiverData.participantName,
-          participantName: waiverData.participantName,
-          guardianName: waiverData.guardianName,
-          isMinor: !!waiverData.guardianName,
-          customerEmail: customerInfo.email,
-          customerPhone: customerInfo.phone,
-          emergencyContactName: waiverData.emergencyContactName,
-          emergencyContactPhone: waiverData.emergencyContactPhone,
-          medicalConditions: waiverData.medicalConditions,
-          ipAddress: clientInfo.ip_address,
-          userAgent: clientInfo.user_agent
-        });
+        // Save a waiver signature for each lesson
+        for (const waiverData of waiverDataArray) {
+          // Find the matching item for this waiver's slot ID
+          const matchingItem = items.find((item: any) => item.slotId === waiverData.slotId);
+          
+          if (matchingItem && waiverData.slotId) {
+            const waiverResult = await waiverService.storeTemporaryWaiverSignature({
+              slotId: waiverData.slotId,
+              paymentIntentId: paymentIntent.id,
+              signerName: waiverData.guardianName || waiverData.participantName,
+              participantName: waiverData.participantName,
+              guardianName: waiverData.guardianName,
+              isMinor: !!waiverData.guardianName,
+              customerEmail: customerInfo.email,
+              customerPhone: customerInfo.phone,
+              emergencyContactName: waiverData.emergencyContactName,
+              emergencyContactPhone: waiverData.emergencyContactPhone,
+              medicalConditions: waiverData.medicalConditions,
+              ipAddress: clientInfo.ip_address,
+              userAgent: clientInfo.user_agent
+            });
 
-        if (!waiverResult.success) {
-          console.error('Failed to save waiver signature:', waiverResult.error);
-          // Don't fail the payment intent creation, just log the error
+            if (!waiverResult.success) {
+              console.error(`Failed to save waiver signature for slot ${waiverData.slotId}:`, waiverResult.error);
+              // Don't fail the payment intent creation, just log the error
+            }
+          }
         }
       } catch (waiverError) {
-        console.error('Error saving waiver signature:', waiverError);
+        console.error('Error saving waiver signatures:', waiverError);
         // Don't fail the payment intent creation
       }
     }

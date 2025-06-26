@@ -198,8 +198,24 @@ export const BookingDetails: React.FC<BookingDetailsProps> = () => {
   const handleWaiverAccept = (data: any) => {
     setWaiverSigned(true);
     setWaiverData(data);
+    
     // Save waiver data to localStorage for payment processing
-    localStorage.setItem('waiverData', JSON.stringify(data));
+    // For multiple lessons, we need to store waiver data with slot ID
+    const existingWaivers = JSON.parse(localStorage.getItem('waiverDataArray') || '[]');
+    const waiverWithSlotId = {
+      ...data,
+      slotId: slotData?.slotId,
+      beach: slotData?.beach,
+      date: slotData?.date,
+      time: slotData?.time
+    };
+    
+    // Check if waiver for this slot already exists and replace it
+    const updatedWaivers = existingWaivers.filter((w: any) => w.slotId !== slotData?.slotId);
+    updatedWaivers.push(waiverWithSlotId);
+    
+    localStorage.setItem('waiverDataArray', JSON.stringify(updatedWaivers));
+    
     setShowWaiverModal(false);
     executeAction();
   };

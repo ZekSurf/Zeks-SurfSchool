@@ -371,27 +371,27 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     // Don't throw error here - cache clearing failure shouldn't break webhook
   }
 
-  // Finalize waiver signature with booking confirmation number
+  // Finalize all waiver signatures with booking confirmation number
   try {
     if (process.env.NODE_ENV !== 'production') {
-      console.log('📝 Finalizing waiver signature...');
+      console.log('📝 Finalizing waiver signatures...');
     }
 
-    const waiverResult = await waiverService.finalizeWaiverSignature(
+    const waiverResult = await waiverService.finalizeAllWaiverSignatures(
       paymentIntent.id,
       confirmationNumber
     );
 
     if (waiverResult.success) {
       if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ Waiver signature finalized successfully');
+        console.log(`✅ ${waiverResult.count} waiver signature(s) finalized successfully`);
       }
     } else {
-      console.error('❌ Failed to finalize waiver signature:', waiverResult.error);
+      console.error('❌ Failed to finalize waiver signatures:', waiverResult.error);
       // Don't throw error - booking should still succeed even if waiver finalization fails
     }
   } catch (error) {
-    console.error('💥 Exception while finalizing waiver signature:', error);
+    console.error('💥 Exception while finalizing waiver signatures:', error);
     // Don't throw error here - waiver failure shouldn't break webhook
   }
 
