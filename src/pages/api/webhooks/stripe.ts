@@ -259,14 +259,14 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     
     if (supabaseResult.success) {
       if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ Booking saved to Supabase successfully!');
+        console.log(`✅ ${supabaseResult.bookings?.length || 1} booking(s) saved to Supabase successfully!`);
         // SECURITY: Removed confirmation number logging - contains booking data
       }
       
-      // Store booking UUID for confirmation page (available in supabaseResult.booking.id)
-      const bookingUuid = supabaseResult.booking?.id;
-      if (process.env.NODE_ENV !== 'production' && bookingUuid) {
-        console.log('✅ Booking UUID available for confirmation:', bookingUuid);
+      // Store booking UUIDs for confirmation page
+      const savedBookings = supabaseResult.bookings || [supabaseResult.booking!];
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('✅ Booking UUIDs available for confirmation:', savedBookings.map(b => b.id));
       }
       
       // Send push notification to staff devices
@@ -275,7 +275,7 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
           console.log('📱 Sending push notification to staff...');
         }
         
-        // Format date and time for notification
+        // Format date and time for notification (use first lesson)
         const lessonDate = new Date(startDateTime).toLocaleDateString('en-US', {
           weekday: 'short',
           month: 'short',
@@ -287,20 +287,31 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
           hour12: true
         });
         
+        // Create notification message based on number of lessons
+        const lessonCount = bookingDetails.length;
+        const notificationTitle = lessonCount > 1 
+          ? `${lessonCount} New Surf Lessons Booked!`
+          : 'New Surf Lesson Booked!';
+        const notificationBody = lessonCount > 1
+          ? `${metadata.customerName} has booked ${lessonCount} lessons starting at ${firstBooking.beach}!`
+          : `${metadata.customerName} has booked a lesson at ${firstBooking.beach}!`;
+        
         const notificationPayload = {
-          title: 'New Surf Lesson Booked!',
-          body: `${metadata.customerName} has booked a lesson at ${firstBooking.beach}!`,
+          title: notificationTitle,
+          body: notificationBody,
           icon: '/zek-surf-icon.ico',
           tag: 'new-booking',
-          bookingId: supabaseResult.booking?.id,
+          bookingId: savedBookings[0].id,
           customerName: metadata.customerName,
           beach: firstBooking.beach,
           lessonDate: lessonDate,
           lessonTime: lessonTime,
+          lessonCount: lessonCount,
           data: {
             url: '/staff-portal-a8f3e2b1c9d7e4f6',
             confirmationNumber: confirmationNumber,
-            bookingId: supabaseResult.booking?.id
+            bookingId: savedBookings[0].id,
+            allBookingIds: savedBookings.map(b => b.id)
           }
         };
 

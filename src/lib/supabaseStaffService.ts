@@ -69,56 +69,67 @@ class SupabaseStaffService {
   }
 
   // Save booking from Stripe webhook data
-  public async saveBookingFromStripeData(stripeData: any): Promise<{ success: boolean; booking?: CompletedBooking; error?: string }> {
+  public async saveBookingFromStripeData(stripeData: any): Promise<{ success: boolean; booking?: CompletedBooking; bookings?: CompletedBooking[]; error?: string }> {
     try {
-      // Use the first slot data for the main booking record (since slotData is now an array)
-      const firstSlot = Array.isArray(stripeData.slotData) ? stripeData.slotData[0] : stripeData.slotData;
+      const slotDataArray = Array.isArray(stripeData.slotData) ? stripeData.slotData : [stripeData.slotData];
+      const savedBookings: CompletedBooking[] = [];
       
-      // Create the database row directly without pre-generating the ID
-      // Let Supabase generate the UUID automatically
-      const dbRow = {
-        payment_intent_id: stripeData.paymentIntentId,
-        confirmation_number: stripeData.confirmationNumber,
-        customer_name: stripeData.customerName,
-        customer_email: stripeData.customerEmail,
-        customer_phone: stripeData.customerPhone || '',
-        beach: firstSlot?.beach || 'Unknown',
-        lesson_date: firstSlot?.date || new Date().toISOString().split('T')[0],
-        start_time: firstSlot?.startTime || '',
-        end_time: firstSlot?.endTime || '',
-        price: stripeData.amount || 0,
-        lessons_booked: stripeData.lessonsBooked || 1,
-        is_private: stripeData.isPrivate || false,
-        status: 'confirmed'
-      };
+      // Create a separate booking record for each lesson
+      for (const slotData of slotDataArray) {
+        // Create the database row for this specific lesson
+        const dbRow = {
+          payment_intent_id: stripeData.paymentIntentId,
+          confirmation_number: stripeData.confirmationNumber,
+          customer_name: stripeData.customerName,
+          customer_email: stripeData.customerEmail,
+          customer_phone: stripeData.customerPhone || '',
+          beach: slotData?.beach || 'Unknown',
+          lesson_date: slotData?.date || new Date().toISOString().split('T')[0],
+          start_time: slotData?.startTime || '',
+          end_time: slotData?.endTime || '',
+          price: slotData?.price || 0, // Use individual lesson price
+          lessons_booked: stripeData.lessonsBooked || 1, // Total lessons in this booking
+          is_private: stripeData.isPrivate || false,
+          status: 'confirmed'
+        };
 
-      // Generate a proper UUID for the booking
-      const bookingUuid = crypto.randomUUID();
-      const dbRowWithId = {
-        ...dbRow,
-        id: bookingUuid
-      };
+        // Generate a unique UUID for each booking record
+        const bookingUuid = crypto.randomUUID();
+        const dbRowWithId = {
+          ...dbRow,
+          id: bookingUuid
+        };
 
-      // Insert and return the created record with the generated UUID
-      const { data, error } = await getSupabaseAdmin()
-        .from('bookings')
-        .insert(dbRowWithId)
-        .select()
-        .single();
+        // Insert this lesson's booking record
+        const { data, error } = await getSupabaseAdmin()
+          .from('bookings')
+          .insert(dbRowWithId)
+          .select()
+          .single();
 
-      if (error) {
-        console.error('Supabase error saving booking:', error);
-        return { success: false, error: error.message };
+        if (error) {
+          console.error(`Supabase error saving booking for ${slotData?.beach} on ${slotData?.date}:`, error);
+          return { success: false, error: error.message };
+        }
+
+        // Convert the returned data to CompletedBooking format
+        const booking = this.dbRowToBooking(data);
+        savedBookings.push(booking);
+        
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`✅ Booking saved for ${slotData?.beach} on ${slotData?.date} with UUID:`, booking.id);
+        }
       }
 
-      // Convert the returned data to CompletedBooking format
-      const booking = this.dbRowToBooking(data);
-      
       if (process.env.NODE_ENV !== 'production') {
-        console.log('✅ Booking saved with UUID:', booking.id);
+        console.log(`✅ All ${savedBookings.length} booking(s) saved successfully`);
       }
 
-      return { success: true, booking };
+      return { 
+        success: true, 
+        bookings: savedBookings,
+        booking: savedBookings[0] // Return first booking for backward compatibility
+      };
     } catch (error) {
       console.error('Error saving Stripe booking to Supabase:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
