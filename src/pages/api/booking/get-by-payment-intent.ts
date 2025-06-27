@@ -52,7 +52,7 @@ export default async function handler(
       success: true,
       bookings: bookings,
       totalBookings: bookings.length,
-      confirmationNumber: bookings[0].confirmation_number, // They all share the same confirmation number
+      confirmationNumber: bookings[0].confirmationNumber, // They all share the same confirmation number
       totalAmount: bookings.reduce((sum: number, booking: any) => sum + booking.price, 0)
     });
   } catch (error) {

@@ -30,21 +30,18 @@ export default function ConfirmationPage() {
     
     const { booking_id, payment_intent } = router.query;
     
-    console.log('🔧 Router query:', router.query);
-    console.log('💳 Payment intent:', payment_intent);
-    console.log('🆔 Booking ID:', booking_id);
+
     
     // If we have a payment_intent, fetch all bookings for it
     if (payment_intent && typeof payment_intent === 'string') {
       const fetchAllBookings = async (retryCount = 0) => {
         try {
-          console.log(`🔍 Fetching bookings for payment intent: ${payment_intent} (attempt ${retryCount + 1})`);
           const response = await fetch(`/api/booking/get-by-payment-intent?payment_intent=${payment_intent}`);
           const data = await response.json();
           
-          console.log('📊 API Response:', { status: response.status, data });
-          
           if (data.success && data.bookings) {
+
+            
             setBookings(data.bookings);
             setConfirmationNumber(data.confirmationNumber);
             setPaymentIntentId(payment_intent);
@@ -222,16 +219,7 @@ export default function ConfirmationPage() {
             )}
 
             {/* Success State */}
-            {(() => {
-              console.log('🎯 Success state check:', { 
-                isLoading, 
-                error, 
-                confirmationNumber, 
-                bookingsLength: bookings.length,
-                totalAmount 
-              });
-              return !isLoading && !error && confirmationNumber;
-            })() && (
+            {!isLoading && !error && confirmationNumber && (
               <>
                 <div className="flex justify-center mb-6">
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
