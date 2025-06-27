@@ -1,52 +1,29 @@
 -- Migration to remove unique constraint on payment_intent_id in bookings table
 -- This allows multiple lessons to be booked with the same payment intent
 
--- Drop the unique constraint on payment_intent_id
--- First, get the constraint name (it might be auto-generated)
-DO $$
-DECLARE
-    constraint_name TEXT;
-BEGIN
-    -- Find the unique constraint name for payment_intent_id
-    SELECT conname INTO constraint_name
-    FROM pg_constraint
-    WHERE conrelid = 'bookings'::regclass
-    AND contype = 'u'
-    AND array_to_string(
-        ARRAY(
-            SELECT attname 
-            FROM pg_attribute 
-            WHERE attrelid = conrelid 
-            AND attnum = ANY(conkey)
-        ), 
-        ','
-    ) = 'payment_intent_id';
-    
-    -- Drop the constraint if it exists
-    IF constraint_name IS NOT NULL THEN
-        EXECUTE 'ALTER TABLE bookings DROP CONSTRAINT ' || constraint_name;
-        RAISE NOTICE 'Dropped unique constraint % on payment_intent_id', constraint_name;
-    ELSE
-        RAISE NOTICE 'No unique constraint found on payment_intent_id';
-    END IF;
-END $$;
+-- Step 1: Drop the unique constraint on payment_intent_id
+ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_payment_intent_id_key;
 
--- Add an index for performance (since we removed the unique constraint)
+-- Step 2: Add an index for performance (since we removed the unique constraint)
 CREATE INDEX IF NOT EXISTS idx_bookings_payment_intent_id ON bookings(payment_intent_id);
 
--- Verify the change
-\d bookings;
+-- Step 3: Verify the change by showing table structure
+SELECT 
+    column_name,
+    data_type,
+    is_nullable,
+    column_default
+FROM information_schema.columns 
+WHERE table_name = 'bookings' 
+AND column_name = 'payment_intent_id';
 
--- Optional: Show any remaining constraints
-SELECT conname, contype, 
-       array_to_string(
-           ARRAY(
-               SELECT attname 
-               FROM pg_attribute 
-               WHERE attrelid = conrelid 
-               AND attnum = ANY(conkey)
-           ), 
-           ','
-       ) as columns
-FROM pg_constraint
-WHERE conrelid = 'bookings'::regclass; 
+-- Step 4: Show any remaining constraints on the bookings table
+SELECT 
+    tc.constraint_name,
+    tc.constraint_type,
+    kcu.column_name
+FROM information_schema.table_constraints tc
+JOIN information_schema.key_column_usage kcu 
+    ON tc.constraint_name = kcu.constraint_name
+WHERE tc.table_name = 'bookings'
+ORDER BY tc.constraint_type, tc.constraint_name; 

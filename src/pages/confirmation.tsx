@@ -12,6 +12,8 @@ export default function ConfirmationPage() {
   const [debugInfo, setDebugInfo] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [totalAmount, setTotalAmount] = useState(0);
 
   const scrollToBooking = () => {
     const bookingSection = document.getElementById('booking');
@@ -26,21 +28,51 @@ export default function ConfirmationPage() {
       return;
     }
     
-    // Only use booking_id (UUID) from URL parameters
-    const { booking_id } = router.query;
+    const { booking_id, payment_intent } = router.query;
     
-    // If someone tries to use the old payment_intent format, redirect them to the proper flow
-    if (router.query.payment_intent && !booking_id) {
-      const paymentIntent = router.query.payment_intent as string;
+    // If we have a payment_intent, fetch all bookings for it
+    if (payment_intent && typeof payment_intent === 'string') {
+      const fetchAllBookings = async (retryCount = 0) => {
+        try {
+          const response = await fetch(`/api/booking/get-by-payment-intent?payment_intent=${payment_intent}`);
+          const data = await response.json();
+          
+          if (data.success && data.bookings) {
+            setBookings(data.bookings);
+            setConfirmationNumber(data.confirmationNumber);
+            setPaymentIntentId(payment_intent);
+            setTotalAmount(data.totalAmount);
+            setIsLoading(false);
+            return;
+          }
+          
+          // If no bookings found and we haven't retried enough, try again
+          if (response.status === 404 && retryCount < 2) {
+            setTimeout(() => fetchAllBookings(retryCount + 1), 1000);
+            return;
+          }
+          
+          // After all retries failed
+          setError(`Bookings not found for payment intent: ${payment_intent.slice(-8)}... Please check your booking confirmation email or contact support.`);
+          setIsLoading(false);
+          
+        } catch (error) {
+          console.error('Error fetching bookings:', error);
+          
+          if (retryCount < 2) {
+            setTimeout(() => fetchAllBookings(retryCount + 1), 1000);
+            return;
+          }
+          
+          setError('Unable to load booking information. Please try again later or contact support.');
+          setIsLoading(false);
+        }
+      };
       
-      setDebugInfo(`Redirecting old format URL to new system: ${paymentIntent}`);
-      
-      // Redirect to the redirect page which will handle the lookup and proper redirect
-      router.replace(`/redirect-to-confirmation?payment_intent=${paymentIntent}`);
-      return;
+      fetchAllBookings();
     }
-    
-    if (booking_id && typeof booking_id === 'string') {
+    // Fallback to single booking lookup for backward compatibility
+    else if (booking_id && typeof booking_id === 'string') {
       // Fetch the booking data with retry logic
       const fetchBookingWithRetry = async (retryCount = 0) => {
         try {
@@ -48,8 +80,10 @@ export default function ConfirmationPage() {
           const data = await response.json();
           
           if (data.success && data.booking) {
+            setBookings([data.booking]); // Single booking in array
             setConfirmationNumber(data.booking.confirmationNumber);
             setPaymentIntentId(data.booking.paymentIntentId);
+            setTotalAmount(data.booking.price);
             setIsLoading(false);
             return;
           }
@@ -79,8 +113,8 @@ export default function ConfirmationPage() {
       
       fetchBookingWithRetry();
     } else {
-      // No booking ID provided
-      setError('No booking ID provided. Please check your booking confirmation email for the correct link.');
+      // No booking ID or payment intent provided
+      setError('No booking information provided. Please check your booking confirmation email for the correct link.');
       setIsLoading(false);
     }
 
@@ -88,11 +122,11 @@ export default function ConfirmationPage() {
 
   // Separate useEffect for Google Ads tracking when confirmation number is available
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.gtag && confirmationNumber) {
+    if (typeof window !== 'undefined' && window.gtag && confirmationNumber && totalAmount > 0) {
       // Track the conversion
       window.gtag('event', 'conversion', {
         'send_to': 'AW-17228135601/xxxxx-xxxxx', // You'll need to replace with your actual conversion ID
-        'value': 100, // You can dynamically set this based on booking value
+        'value': totalAmount, // Use actual booking value
         'currency': 'USD',
         'transaction_id': confirmationNumber
       });
@@ -100,11 +134,12 @@ export default function ConfirmationPage() {
       // Track as a custom event for optimization
       window.gtag('event', 'booking_completed', {
         'event_category': 'engagement',
-        'event_label': 'surf_lesson_booking',
-        'value': 100
+        'event_label': bookings.length > 1 ? 'multiple_surf_lesson_booking' : 'surf_lesson_booking',
+        'value': totalAmount,
+        'lessons_count': bookings.length
       });
     }
-  }, [confirmationNumber]);
+  }, [confirmationNumber, totalAmount, bookings.length]);
 
   return (
     <>
@@ -220,6 +255,65 @@ export default function ConfirmationPage() {
                     </p>
                   </div>
                 </div>
+
+                {/* Booking Details */}
+                {bookings.length > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-6 mb-8">
+                    <h2 className="text-lg font-semibold text-gray-800 mb-4">
+                      {bookings.length > 1 ? `Your ${bookings.length} Surf Lessons` : 'Your Surf Lesson'}
+                    </h2>
+                    <div className="space-y-4">
+                      {bookings.map((booking, index) => (
+                        <div key={booking.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h3 className="font-semibold text-gray-800">
+                                {bookings.length > 1 && `Lesson ${index + 1}: `}{booking.beach}
+                              </h3>
+                              {booking.isPrivate && (
+                                <span className="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full mt-1">
+                                  Private Lesson
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-semibold text-[#1DA9C7]">${booking.price.toFixed(2)}</p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
+                            <div>
+                              <span className="font-medium">Date:</span> {new Date(booking.date).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </div>
+                            <div>
+                              <span className="font-medium">Time:</span> {new Date(booking.startTime).toLocaleTimeString('en-US', {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              })} - {new Date(booking.endTime).toLocaleTimeString('en-US', {
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {bookings.length > 1 && (
+                        <div className="border-t border-gray-300 pt-4 mt-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-lg font-semibold text-gray-800">Total Amount:</span>
+                            <span className="text-xl font-bold text-[#1DA9C7]">${totalAmount.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 
                 <div className="bg-gray-50 rounded-lg p-6 mb-8">
                   <h2 className="text-lg font-semibold text-gray-800 mb-4">What's Next?</h2>

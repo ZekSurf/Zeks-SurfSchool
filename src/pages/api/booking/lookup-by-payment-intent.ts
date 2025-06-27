@@ -22,12 +22,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log(`🔍 Looking up booking for payment intent: ${payment_intent}`);
     }
 
-    // Look up the booking UUID by payment intent ID
+    // Look up the booking UUIDs by payment intent ID (there may be multiple)
     const { data, error } = await getSupabaseAdmin()
       .from('bookings')
       .select('id, confirmation_number, created_at')
       .eq('payment_intent_id', payment_intent)
-      .single();
+      .order('created_at', { ascending: true }); // Get oldest first
 
     if (error) {
       if (process.env.NODE_ENV !== 'production') {
@@ -57,20 +57,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    if (!data) {
+    if (!data || data.length === 0) {
       return res.status(404).json({ 
         error: 'Booking not found',
         success: false 
       });
     }
 
+    // For multiple bookings, they all share the same confirmation number
+    // Return the first booking ID and info about all bookings
+    const firstBooking = data[0];
+    const allBookingIds = data.map((booking: any) => booking.id);
+
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`✅ Found booking: ${data.id} (${data.confirmation_number})`);
+      console.log(`✅ Found ${data.length} booking(s): ${allBookingIds.map((id: string) => id.slice(0, 8)).join(', ')} (${firstBooking.confirmation_number})`);
     }
 
     return res.status(200).json({
       success: true,
-      booking_id: data.id
+      booking_id: firstBooking.id, // Primary booking ID for backward compatibility
+      booking_ids: allBookingIds, // All booking IDs for this payment intent
+      confirmation_number: firstBooking.confirmation_number,
+      total_bookings: data.length
     });
 
   } catch (error) {

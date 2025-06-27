@@ -31,9 +31,9 @@ export default function RedirectToConfirmation() {
             console.log('Booking lookup response data:', data);
             
             if (data.success && data.booking_id) {
-              console.log('Booking found, redirecting to confirmation with ID:', data.booking_id);
-              // Force a complete page navigation to prevent reload issues
-              window.location.href = `/confirmation?booking_id=${data.booking_id}`;
+              console.log('Booking found, redirecting to confirmation with payment intent:', payment_intent);
+              // Pass the payment intent to show all related bookings
+              window.location.href = `/confirmation?payment_intent=${payment_intent}`;
             } else {
               console.error('Booking lookup failed:', data);
               // This might be an older booking that doesn't exist in our current system
