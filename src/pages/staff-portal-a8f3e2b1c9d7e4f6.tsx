@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { CompletedBooking } from '@/types/booking';
-import { supabaseStaffService } from '@/lib/supabaseStaffService';
 import WeeklyCalendar from '@/components/Staff/WeeklyCalendar';
 import BookingDetailsModal from '@/components/Staff/BookingDetailsModal';
 import { pushNotificationService } from '@/lib/pushNotificationService';
@@ -197,9 +196,17 @@ export default function StaffPortal() {
     }
 
     try {
-      const isValidPin = await supabaseStaffService.verifyStaffPin(pin);
+      const response = await fetch('/api/staff/verify-pin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pin }),
+      });
       
-      if (isValidPin) {
+      const result = await response.json();
+      
+      if (result.success && result.isValid) {
         setIsAuthenticated(true);
         sessionStorage.setItem('staff_portal_auth', 'authenticated');
         setLoginAttempts(0);
@@ -263,10 +270,12 @@ export default function StaffPortal() {
     setSyncMessage('');
 
     try {
-      const result = await supabaseStaffService.getAllBookings();
+      const response = await fetch('/api/staff/get-bookings');
+      const result = await response.json();
+      
       if (result.success) {
         setRefreshKey(prev => prev + 1);
-        setSyncMessage(`✅ Synced successfully! Found ${result.bookings.length} total bookings.`);
+        setSyncMessage(`✅ Synced successfully! Found ${result.count} total bookings.`);
       } else {
         setSyncMessage(`❌ Sync failed: ${result.error}`);
       }

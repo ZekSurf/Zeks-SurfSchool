@@ -369,13 +369,27 @@ async function handleSuccessfulPayment(paymentIntent: Stripe.PaymentIntent) {
     // Don't throw error here - staff system failure shouldn't break webhook
   }
   
-  // Cache invalidation only (no fresh fetch to avoid triggering time slots webhook)
+  // Cache invalidation for ALL booked slots (no fresh fetch to avoid triggering time slots webhook)
   try {
-    const bookingDate = new Date(startDateTime).toISOString().split('T')[0]; // Extract date from startTime
-    await bookingService.invalidateCacheForBooking(bookingDate);
+    // Get unique date/beach combinations from all booked slots
+    const uniqueDateBeachCombos = new Set<string>();
+    allSlotData.forEach((slot: any) => {
+      const combo = `${slot.date}_${slot.beach}`;
+      uniqueDateBeachCombos.add(combo);
+    });
+    
+    // Clear cache for each unique date/beach combination
+    for (const combo of Array.from(uniqueDateBeachCombos)) {
+      const [date, beach] = combo.split('_');
+      await bookingService.clearCacheForDate(new Date(date), beach);
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`✅ Cache invalidated for ${beach} on ${date}`);
+      }
+    }
     
     if (process.env.NODE_ENV !== 'production') {
-      console.log('✅ Cache invalidated for booking date');
+      console.log(`✅ Cache invalidated for ${uniqueDateBeachCombos.size} date/beach combinations`);
     }
   } catch (error) {
     console.error('❌ Error invalidating booking cache:', error);

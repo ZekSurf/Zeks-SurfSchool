@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { CompletedBooking } from '@/types/booking';
-import { supabaseStaffService } from '@/lib/supabaseStaffService';
 
 interface BookingDetailsModalProps {
   booking: CompletedBooking | null;
@@ -22,7 +21,19 @@ export default function BookingDetailsModal({
   const handleStatusUpdate = async (newStatus: CompletedBooking['status']) => {
     setIsUpdating(true);
     try {
-      const result = await supabaseStaffService.updateBookingStatus(booking.id, newStatus);
+      const response = await fetch('/api/staff/update-booking-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          bookingId: booking.id, 
+          status: newStatus 
+        }),
+      });
+      
+      const result = await response.json();
+      
       if (result.success) {
         onStatusUpdate(booking.id, newStatus);
       } else {

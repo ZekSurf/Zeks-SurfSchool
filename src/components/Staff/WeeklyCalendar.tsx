@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { CompletedBooking } from '@/types/booking';
-import { supabaseStaffService } from '@/lib/supabaseStaffService';
 
 interface WeeklyCalendarProps {
   selectedWeek: Date;
@@ -18,7 +17,10 @@ export default function WeeklyCalendar({ selectedWeek, onBookingClick }: WeeklyC
   const loadBookingsForWeek = async () => {
     setLoading(true);
     try {
-      const result = await supabaseStaffService.getBookingsForWeek(selectedWeek);
+      const startDate = selectedWeek.toISOString();
+      const response = await fetch(`/api/staff/get-weekly-bookings?startDate=${encodeURIComponent(startDate)}`);
+      const result = await response.json();
+      
       if (result.success) {
         setBookings(result.bookings);
       } else {
