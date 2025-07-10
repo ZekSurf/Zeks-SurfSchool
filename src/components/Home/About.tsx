@@ -19,22 +19,22 @@ const About: FC = () => {
 
   const testimonials = [
     {
-      name: 'Olivia Bennett',
+      name: 'Olivia B.',
       date: '2023-08-15',
       rating: 5,
-      text: '"Zek is an amazing instructor! I went from being a complete beginner to catching waves in just a few lessons. His instructions were clear, and he made me feel confident in the water."',
+      text: '"We signed up our two kids and they had a blast. Our instructor, Zek, was patient and really encouraged the kids. We will definitely be back!"',
     },
     {
-      name: 'Ethan Harper',
+      name: 'Chole W.',
       date: '2023-07-22',
       rating: 5,
-      text: '"I\'ve had surf lessons with other instructors before, but Zek is completely different. He really focuses on your individual needs and helps you improve quickly. Highly recommended!"',
+      text: '"I\’d never even touched a surfboard before, but by the end of my hour private lesson with Zek, I was standing up and riding tiny waves on my own."',
     },
     {
-      name: 'Chloe Wong',
+      name: 'Ethan H.',
       date: '2023-06-10',
-      rating: 5,
-      text: '"Zek is a great instructor, very patient and knowledgeable. I improved my technique a lot, but I wish we had more time in the water during the lessons."',
+      rating: 4,
+      text: '"I\’ve been surfing a couple of seasons but hit a plateau. Booked a private lesson, and he pinpointed a few tiny tweaks to my pop up and stance that made a huge difference."',
     },
   ];
 
@@ -270,13 +270,11 @@ const About: FC = () => {
             {testimonials.map((testimonial, index) => (
               <div key={index} className="bg-white p-6 rounded-lg shadow-lg">
                 <div className="flex items-center mb-4">
-                  <Image
-                    src={`https://i.pravatar.cc/150?img=${index + 10}`}
-                    alt={`${testimonial.name}'s profile picture`}
-                    width={48}
-                    height={48}
-                    className="rounded-full"
-                  />
+                  <div className="w-12 h-12 bg-cyan-100 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
                   <div className="ml-4">
                     <h3 className="font-medium">{testimonial.name}</h3>
                     <p className="text-sm text-gray-500">{testimonial.date}</p>
